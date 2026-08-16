@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OPERATEUR
+  TECHNICIEN
+  INGENIEUR
+  ADMIN
+}
+
+enum JugementOperateur{
+EN_ATTENTE
+PASS 
+FAIL
+}
+
+enum StatutEquipement{
+  OK
+  NOK
+}
+enum ResultatInspection{
+  GOOD
+  NOT_GOOD
+}
+ 
+model Utilisateur {
+  id        String   @id @default(uuid())
+  firstname String?
+  lastname  String?
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now()) @map("updateAt")
+
+  inspections Inspection[]
+
+  @@map("utilisateurs")
+}
+
+model Reference {
+  id  String @id @default(uuid())
+  PRF String @unique
+  verifSN   Boolean
+  longeurSN  Int
+  partieFixe   String
+  postpartiefixe   String
+  activationInterblocage Boolean
+  indicePartieFixe Int
+  statutSN  String
+  jugementOperateurBO Boolean @default(false) @map("jugementOperateur")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  imagepath String?
+  ordreFabrication OrdreFabrication?
+  programme Programme[]  
+  carteModele CarteModele[]
+  inspection Inspection[]
+
+  @@map("system_config")
+}
+
+model OrdreFabrication {
+  id        String    @id @default(uuid())
+  OF        String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  PRF       String    @unique
+  reference Reference @relation(fields: [PRF], references: [PRF])
+  inspection Inspection[]
+
+  @@map("Ordre_Fabrication")
+}
+model Programme {
+  id String @id @default(uuid())
+  PRF String 
+  reference Reference @relation(fields:[PRF],references: [PRF])
+  Zone ZoneInspection[]
+  @@map("programmes")
+}
+model ZoneInspection{
+  id String @id@default(uuid())
+  nom String 
+  programmeId String
+  programme Programme @relation(fields: [programmeId],references: [id])
+  defautDetecte DefautDetecte[]
+  defautAttendu DefautAttendu[]
+  @@map("Zone_inspection")
+
+}
+
+model Inspection {
+  id String @id @default(uuid())
+  sn String
+  dateHeure DateTime @default(now())
+  imagePathTop String?
+  imagePathBottom String?
+  resultat ResultatInspection 
+  ofId String
+  carteModeleId String?
+  carteModele CarteModele? @relation(fields:[carteModeleId],references:[id])
+  tempsInspo Float?
+  of OrdreFabrication @relation(fields: [ofId], references: [id])
+  operateurId String
+  operateur Utilisateur @relation(fields: [operateurId], references: [id])
+  defauts DefautDetecte[]
+  PRF String
+  reference Reference @relation(fields: [PRF],references: [PRF])
+
+  @@map("inspections")
+}
+
+model DefautDetecte {
+  id String @id@default(uuid())
+  defautdetecte String
+  jugement JugementOperateur @default(EN_ATTENTE)
+  inspectionId String
+  inspection Inspection @relation(fields: [inspectionId], references: [id],onDelete:Cascade)
+  zoneId String
+  zone ZoneInspection @relation(fields: [zoneId], references: [id])
+
+
+  @@map("defauts_detectes")
+}
+model CarteModele {
+  id            String       @id @default(uuid())
+  sn            String       @unique
+  PRF           String
+  imagePath     String?
+
+  reference     Reference    @relation(fields: [PRF], references: [PRF])
+  defautAttendu DefautAttendu[]
+  inspections   Inspection[]
+
+  @@map("carte_modele")
+}
+model DefautAttendu{
+  id String @id@default(uuid())
+  defautAttendu String
+  carteModelId String
+  carteModele CarteModele @relation(fields: [carteModelId],references: [id])
+  zoneId String
+  zone ZoneInspection @relation(fields: [zoneId],references: [id])
+  @@map("defaut_attendu")
+}
+model Equipement{
+  id String @id@default(uuid())
+  nom String @unique
+  statut StatutEquipement
+  dateHeurePremierIncident DateTime?
+  @@map("equipement")
+}
