@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useState
-} from "react";
+import { useEffect, useState } from "react";
 
 import Header from "@/components/layout/Header";
 
@@ -13,88 +10,110 @@ import {
   updateReference,
   deleteReference,
   createProgramme,
-  updateProgramme
+  updateProgramme,
 } from "@/lib/api";
 
 import {
   Plus,
   Pencil,
   Trash2,
-  PlusIcon
+  PlusIcon,
 } from "lucide-react";
 
 import ReferenceModal from "../components/ReferenceModal";
 import ProgrammeModal from "../components/ProgrammeModal";
+
 import { useAuth } from "@/app/context/AuthContext";
 
 export default function ReferencePage() {
+  const { user } = useAuth();
+
+  const [references, setReferences] = useState<any[]>([]);
+
+  const [openModal, setOpenModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [programmeModal, setProgrammeModal] = useState(false);
+  const [programmeEdit, setProgrammeEdit] = useState(false);
+  const [programmeId, setProgrammeId] = useState<string | null>(null);
+
+  const [selectedReference, setSelectedReference] =
+    useState<any>(null);
+
+  const [zones, setZones] = useState<{ nom: string }[]>([]);
+
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [referenceToDelete, setReferenceToDelete] =
+    useState<string | null>(null);
+
+  // ============================================================
+  // FORMULAIRE REFERENCE
+  // ============================================================
+
+  const emptyForm = {
+    PRF: "",
+    OF: "",
+
+    verifSN: true,
+    longeurSN: 0,
+
+    // Nombre de cartes/SN à inspecter
+    nombreSN: 1,
+
+    partieFixe: "",
+    postpartiefixe: "",
+
+    activationInterblocage: true,
+    indicePartieFixe: 0,
+
+    statutSN: "",
+    jugementOperateurBO: false,
+
+    imagepath: "",
+  };
+
+  const [form, setForm] = useState(emptyForm);
+
+  // ============================================================
+  // CHARGEMENT DES REFERENCES
+  // ============================================================
 
   useEffect(() => {
     loadReferences();
   }, []);
 
-  const [references, setReferences] = useState<any[]>([]);
-  const { user } = useAuth();
-
-  const emptyForm = {
-    PRF: "",
-    OF: "",
-    verifSN: true,
-    longeurSN: 0,
-    partieFixe: "",
-    postpartiefixe: "",
-    activationInterblocage: true,
-    indicePartieFixe: 0,
-    statutSN: "",
-    jugementOperateurBO: false,
-    imagepath: ""
-  };
-
-  const [form, setForm] = useState(emptyForm);
-  const [openModal, setOpenModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [selectedId, setSelectedId] =
-    useState<string | null>(null);
-
-  const [programmeModal, setProgrammeModal] =
-    useState(false);
-
-  const [programmeEdit, setProgrammeEdit] =
-    useState(false);
-
-  const [programmeId, setProgrammeId] =
-    useState<string | null>(null);
-
-  const [selectedReference, setSelectedReference] =
-    useState<any>(null);
-
-  const [zones, setZones] =
-    useState<{ nom: string }[]>([]);
-
-  const [deleteModal, setDeleteModal] =
-    useState(false);
-
-  const [referenceToDelete, setReferenceToDelete] =
-    useState<string | null>(null);
-
   const loadReferences = async () => {
     try {
       const data = await getReferences();
+
       setReferences(data);
     } catch (error) {
       console.error(
-        "Erreur chargement références",
+        "Erreur chargement références :",
         error
       );
     }
   };
 
+  // ============================================================
+  // AJOUTER REFERENCE
+  // ============================================================
+
   const handleAdd = () => {
     setEditMode(false);
     setSelectedId(null);
-    setForm(emptyForm);
+
+    setForm({
+      ...emptyForm,
+    });
+
     setOpenModal(true);
   };
+
+  // ============================================================
+  // MODIFIER REFERENCE
+  // ============================================================
 
   const handleEdit = (ref: any) => {
     setEditMode(true);
@@ -102,26 +121,70 @@ export default function ReferencePage() {
 
     setForm({
       PRF: ref.PRF ?? "",
-      OF: ref.ordreFabrication?.OF ?? "",
-      verifSN: ref.verifSN ?? true,
-      longeurSN: ref.longeurSN ?? 0,
-      partieFixe: ref.partieFixe ?? "",
-      postpartiefixe: ref.postpartiefixe ?? "",
+
+      OF:
+        ref.ordreFabrication?.OF ??
+        ref.OF ??
+        "",
+
+      verifSN:
+        ref.verifSN ?? true,
+
+      longeurSN:
+        ref.longeurSN ?? 0,
+
+      nombreSN:
+        ref.nombreSN ?? 1,
+
+      partieFixe:
+        ref.partieFixe ?? "",
+
+      postpartiefixe:
+        ref.postpartiefixe ?? "",
+
       activationInterblocage:
         ref.activationInterblocage ?? true,
+
       indicePartieFixe:
         ref.indicePartieFixe ?? 0,
-      statutSN: ref.statutSN ?? "",
+
+      statutSN:
+        ref.statutSN ?? "",
+
       jugementOperateurBO:
         ref.jugementOperateurBO ?? false,
-      imagepath: ref.imagepath ?? ""
+
+      imagepath:
+        ref.imagepath ?? "",
     });
 
     setOpenModal(true);
   };
 
+  // ============================================================
+  // SAUVEGARDER REFERENCE
+  // ============================================================
+
   const handleSave = async () => {
     try {
+      // Vérification minimale
+      if (!form.PRF.trim()) {
+        alert("Veuillez saisir le PRF.");
+        return;
+      }
+
+      if (!form.OF.trim()) {
+        alert("Veuillez saisir l'OF.");
+        return;
+      }
+
+      if (form.nombreSN < 1) {
+        alert(
+          "Le nombre de SN doit être supérieur ou égal à 1."
+        );
+        return;
+      }
+
       if (editMode && selectedId) {
         await updateReference(
           selectedId,
@@ -132,19 +195,32 @@ export default function ReferencePage() {
       }
 
       setOpenModal(false);
-      await loadReferences();
 
+      setSelectedId(null);
+
+      setEditMode(false);
+
+      await loadReferences();
     } catch (error: any) {
+      console.error(
+        "Erreur sauvegarde référence :",
+        error
+      );
+
       console.log(
-        error.response?.data
+        error?.response?.data
       );
 
       alert(
-        error.response?.data?.message ??
-        "Erreur"
+        error?.response?.data?.message ??
+          "Une erreur est survenue lors de l'enregistrement de la référence."
       );
     }
   };
+
+  // ============================================================
+  // PROGRAMME
+  // ============================================================
 
   const handleProgramme = (ref: any) => {
     setSelectedReference(ref);
@@ -154,31 +230,65 @@ export default function ReferencePage() {
 
     if (programme) {
       setProgrammeEdit(true);
-      setProgrammeId(programme.id);
+
+      setProgrammeId(
+        programme.id
+      );
 
       setZones(
-        programme.Zone.map(
+        programme.Zone?.map(
           (z: any) => ({
-            nom: z.nom
+            nom: z.nom,
           })
-        )
+        ) ?? [{ nom: "" }]
       );
     } else {
       setProgrammeEdit(false);
+
       setProgrammeId(null);
 
       setZones([
         {
-          nom: ""
-        }
+          nom: "",
+        },
       ]);
     }
 
     setProgrammeModal(true);
   };
 
+  // ============================================================
+  // SAUVEGARDER PROGRAMME
+  // ============================================================
+
   const handleSaveProgramme = async () => {
     try {
+      if (!selectedReference) {
+        alert(
+          "Aucune référence sélectionnée."
+        );
+        return;
+      }
+
+      // Supprimer les zones vides
+      const cleanedZones =
+        zones
+          .map((zone) => ({
+            nom: zone.nom.trim(),
+          }))
+          .filter(
+            (zone) => zone.nom.length > 0
+          );
+
+      if (
+        cleanedZones.length === 0
+      ) {
+        alert(
+          "Veuillez ajouter au moins une zone."
+        );
+        return;
+      }
+
       if (
         programmeEdit &&
         programmeId
@@ -186,39 +296,60 @@ export default function ReferencePage() {
         await updateProgramme(
           programmeId,
           {
-            zones
+            zones: cleanedZones,
           }
         );
       } else {
         await createProgramme({
-          PRF: selectedReference.PRF,
-          zones
+          PRF:
+            selectedReference.PRF,
+
+          zones: cleanedZones,
         });
       }
 
       setProgrammeModal(false);
-      await loadReferences();
 
+      setSelectedReference(null);
+
+      await loadReferences();
     } catch (error: any) {
+      console.error(
+        "Erreur programme :",
+        error
+      );
+
       console.log(
-        error.response?.data
+        error?.response?.data
       );
 
       alert(
-        error.response?.data?.message ??
-        "Erreur programme"
+        error?.response?.data?.message ??
+          "Erreur lors de l'enregistrement du programme."
       );
     }
   };
 
-  const handleDelete = (id: string) => {
+  // ============================================================
+  // SUPPRIMER REFERENCE
+  // ============================================================
+
+  const handleDelete = (
+    id: string
+  ) => {
     setReferenceToDelete(id);
+
     setDeleteModal(true);
   };
 
+  // ============================================================
+  // CONFIRMER SUPPRESSION
+  // ============================================================
+
   const confirmDelete = async () => {
-    if (!referenceToDelete)
+    if (!referenceToDelete) {
       return;
+    }
 
     try {
       await deleteReference(
@@ -228,30 +359,47 @@ export default function ReferencePage() {
       await loadReferences();
 
       setDeleteModal(false);
-      setReferenceToDelete(null);
 
-    } catch (error) {
-      console.error(error);
+      setReferenceToDelete(null);
+    } catch (error: any) {
+      console.error(
+        "Erreur suppression référence :",
+        error
+      );
+
+      alert(
+        error?.response?.data?.message ??
+          "Impossible de supprimer la référence."
+      );
     }
   };
 
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <>
-      {/* =====================================================
+      {/* ======================================================
           HEADER
-      ===================================================== */}
+      ====================================================== */}
 
       <Header
         user={{
-          firstName: user?.firstname ?? "",
-          lastName: user?.lastname ?? "",
-          role: user?.role ?? ""
+          firstName:
+            user?.firstname ?? "",
+
+          lastName:
+            user?.lastname ?? "",
+
+          role:
+            user?.role ?? "",
         }}
       />
 
-      {/* =====================================================
+      {/* ======================================================
           MAIN
-      ===================================================== */}
+      ====================================================== */}
 
       <main
         className="
@@ -261,15 +409,15 @@ export default function ReferencePage() {
           py-8
           transition-colors
           duration-300
+
           sm:px-8
 
           dark:bg-slate-950
         "
       >
-
-        {/* ===================================================
+        {/* ====================================================
             TITRE
-        =================================================== */}
+        ==================================================== */}
 
         <div className="mb-8">
           <h1
@@ -278,8 +426,10 @@ export default function ReferencePage() {
               font-bold
               tracking-tight
               text-gray-900
+
               transition-colors
               duration-300
+
               sm:text-3xl
 
               dark:text-white
@@ -297,13 +447,14 @@ export default function ReferencePage() {
               dark:text-slate-400
             "
           >
-            Consultez et gérez les références de production
+            Consultez et gérez les références de
+            production
           </p>
         </div>
 
-        {/* ===================================================
+        {/* ====================================================
             BOUTON AJOUTER
-        =================================================== */}
+        ==================================================== */}
 
         <div className="mb-6 flex justify-end">
           <button
@@ -321,6 +472,7 @@ export default function ReferencePage() {
               font-semibold
               text-white
               shadow-sm
+
               transition-all
               duration-200
 
@@ -333,13 +485,14 @@ export default function ReferencePage() {
             "
           >
             <Plus size={17} />
+
             Ajouter référence
           </button>
         </div>
 
-        {/* ===================================================
+        {/* ====================================================
             TABLE
-        =================================================== */}
+        ==================================================== */}
 
         <section
           className="
@@ -349,6 +502,7 @@ export default function ReferencePage() {
             border-gray-200
             bg-white
             shadow-sm
+
             transition-colors
             duration-300
 
@@ -356,19 +510,21 @@ export default function ReferencePage() {
             dark:bg-slate-900
           "
         >
-
-          {/* =================================================
-              HEADER TABLE
-          ================================================= */}
+          {/* ==================================================
+              TABLE HEADER
+          ================================================== */}
 
           <div
             className="
               flex
               items-center
               justify-between
+
               border-b
               border-gray-200
+
               bg-gray-100
+
               px-5
               py-3
 
@@ -401,22 +557,21 @@ export default function ReferencePage() {
             </div>
           </div>
 
-          {/* =================================================
+          {/* ==================================================
               TABLE RESPONSIVE
-          ================================================= */}
+          ================================================== */}
 
           <div className="overflow-x-auto">
             <table
               className="
                 w-full
-                min-w-[1100px]
+                min-w-[1450px]
                 text-sm
               "
             >
-
-              {/* =================================================
+              {/* ==============================================
                   THEAD
-              ================================================= */}
+              ============================================== */}
 
               <thead>
                 <tr
@@ -431,6 +586,8 @@ export default function ReferencePage() {
                     dark:text-slate-400
                   "
                 >
+                  {/* PRF */}
+
                   <th
                     className="
                       p-3
@@ -440,6 +597,8 @@ export default function ReferencePage() {
                   >
                     PRF
                   </th>
+
+                  {/* OF */}
 
                   <th
                     className="
@@ -451,6 +610,44 @@ export default function ReferencePage() {
                     OF
                   </th>
 
+                  {/* NOMBRE SN */}
+
+                  <th
+                    className="
+                      p-3
+                      text-center
+                      font-semibold
+                    "
+                  >
+                    Nombre SN
+                  </th>
+
+                  {/* PARTIE FIXE */}
+
+                  <th
+                    className="
+                      p-3
+                      text-center
+                      font-semibold
+                    "
+                  >
+                    Partie fixe
+                  </th>
+
+                  {/* POST PARTIE FIXE */}
+
+                  <th
+                    className="
+                      p-3
+                      text-center
+                      font-semibold
+                    "
+                  >
+                    Post-partie fixe
+                  </th>
+
+                  {/* VERIFICATION SN */}
+
                   <th
                     className="
                       p-3
@@ -460,6 +657,8 @@ export default function ReferencePage() {
                   >
                     Vérification SN
                   </th>
+
+                  {/* LONGUEUR SN */}
 
                   <th
                     className="
@@ -471,6 +670,8 @@ export default function ReferencePage() {
                     Longueur SN
                   </th>
 
+                  {/* INTERBLOCAGE */}
+
                   <th
                     className="
                       p-3
@@ -480,6 +681,8 @@ export default function ReferencePage() {
                   >
                     Interblocage
                   </th>
+
+                  {/* STATUT SN */}
 
                   <th
                     className="
@@ -491,6 +694,8 @@ export default function ReferencePage() {
                     Statut SN
                   </th>
 
+                  {/* PROGRAMME */}
+
                   <th
                     className="
                       p-3
@@ -500,6 +705,8 @@ export default function ReferencePage() {
                   >
                     Programme
                   </th>
+
+                  {/* ACTIONS */}
 
                   <th
                     className="
@@ -525,12 +732,10 @@ export default function ReferencePage() {
                   dark:divide-slate-800
                 "
               >
-
                 {references.length === 0 ? (
-
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={11}
                       className="
                         p-8
                         text-center
@@ -543,26 +748,26 @@ export default function ReferencePage() {
                       Aucune référence trouvée
                     </td>
                   </tr>
-
                 ) : (
-
                   references.map(
                     (ref: any) => (
-
                       <tr
                         key={ref.id}
                         className="
                           bg-white
+
                           transition-colors
                           duration-200
+
                           hover:bg-gray-50
 
                           dark:bg-slate-900
                           dark:hover:bg-slate-800/70
                         "
                       >
-
-                        {/* PRF */}
+                        {/* ====================================
+                            PRF
+                        ==================================== */}
 
                         <td
                           className="
@@ -577,7 +782,9 @@ export default function ReferencePage() {
                           {ref.PRF}
                         </td>
 
-                        {/* OF */}
+                        {/* ====================================
+                            OF
+                        ==================================== */}
 
                         <td
                           className="
@@ -588,12 +795,136 @@ export default function ReferencePage() {
                             dark:text-slate-300
                           "
                         >
-                          {ref.ordreFabrication?.OF ??
+                          {ref
+                            .ordreFabrication
+                            ?.OF ??
                             ref.OF ??
                             "-"}
                         </td>
 
-                        {/* VERIFICATION SN */}
+                        {/* ====================================
+                            NOMBRE SN
+                        ==================================== */}
+
+                        <td
+                          className="
+                            p-3
+                            text-center
+                            font-semibold
+                            text-gray-900
+
+                            dark:text-white
+                          "
+                        >
+                          <span
+                            className="
+                              inline-flex
+                              min-w-[48px]
+                              items-center
+                              justify-center
+                              rounded-full
+
+                              bg-teal-50
+
+                              px-3
+                              py-1
+
+                              text-xs
+                              font-semibold
+                              text-teal-700
+
+                              dark:bg-teal-950/40
+                              dark:text-teal-400
+                            "
+                          >
+                            {ref.nombreSN ??
+                              0}
+                          </span>
+                        </td>
+
+                        {/* ====================================
+                            PARTIE FIXE
+                        ==================================== */}
+
+                        <td
+                          className="
+                            max-w-[160px]
+                            p-3
+                            text-center
+                            text-gray-700
+
+                            dark:text-slate-300
+                          "
+                        >
+                          <span
+                            className="
+                              inline-block
+                              max-w-[150px]
+                              truncate
+                              rounded-md
+                              bg-gray-100
+                              px-2
+                              py-1
+                              font-mono
+                              text-xs
+                              text-gray-700
+
+                              dark:bg-slate-800
+                              dark:text-slate-300
+                            "
+                            title={
+                              ref.partieFixe ??
+                              ""
+                            }
+                          >
+                            {ref.partieFixe ||
+                              "-"}
+                          </span>
+                        </td>
+
+                        {/* ====================================
+                            POST PARTIE FIXE
+                        ==================================== */}
+
+                        <td
+                          className="
+                            max-w-[160px]
+                            p-3
+                            text-center
+                            text-gray-700
+
+                            dark:text-slate-300
+                          "
+                        >
+                          <span
+                            className="
+                              inline-block
+                              max-w-[150px]
+                              truncate
+                              rounded-md
+                              bg-gray-100
+                              px-2
+                              py-1
+                              font-mono
+                              text-xs
+                              text-gray-700
+
+                              dark:bg-slate-800
+                              dark:text-slate-300
+                            "
+                            title={
+                              ref.postpartiefixe ??
+                              ""
+                            }
+                          >
+                            {ref.postpartiefixe ||
+                              "-"}
+                          </span>
+                        </td>
+
+                        {/* ====================================
+                            VERIFICATION SN
+                        ==================================== */}
 
                         <td
                           className="
@@ -615,12 +946,14 @@ export default function ReferencePage() {
                                   ? `
                                     bg-green-100
                                     text-green-700
+
                                     dark:bg-green-950/40
                                     dark:text-green-400
                                   `
                                   : `
                                     bg-gray-100
                                     text-gray-600
+
                                     dark:bg-slate-800
                                     dark:text-slate-400
                                   `
@@ -633,7 +966,9 @@ export default function ReferencePage() {
                           </span>
                         </td>
 
-                        {/* LONGUEUR SN */}
+                        {/* ====================================
+                            LONGUEUR SN
+                        ==================================== */}
 
                         <td
                           className="
@@ -644,10 +979,13 @@ export default function ReferencePage() {
                             dark:text-slate-300
                           "
                         >
-                          {ref.longeurSN}
+                          {ref.longeurSN ??
+                            "-"}
                         </td>
 
-                        {/* INTERBLOCAGE */}
+                        {/* ====================================
+                            INTERBLOCAGE
+                        ==================================== */}
 
                         <td
                           className="
@@ -669,12 +1007,14 @@ export default function ReferencePage() {
                                   ? `
                                     bg-green-100
                                     text-green-700
+
                                     dark:bg-green-950/40
                                     dark:text-green-400
                                   `
                                   : `
                                     bg-gray-100
                                     text-gray-600
+
                                     dark:bg-slate-800
                                     dark:text-slate-400
                                   `
@@ -687,7 +1027,9 @@ export default function ReferencePage() {
                           </span>
                         </td>
 
-                        {/* STATUT SN */}
+                        {/* ====================================
+                            STATUT SN
+                        ==================================== */}
 
                         <td
                           className="
@@ -698,10 +1040,13 @@ export default function ReferencePage() {
                             dark:text-slate-300
                           "
                         >
-                          {ref.statutSN || "-"}
+                          {ref.statutSN ||
+                            "-"}
                         </td>
 
-                        {/* PROGRAMME */}
+                        {/* ====================================
+                            PROGRAMME
+                        ==================================== */}
 
                         <td
                           className="
@@ -712,7 +1057,9 @@ export default function ReferencePage() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleProgramme(ref)
+                              handleProgramme(
+                                ref
+                              )
                             }
                             className="
                               inline-flex
@@ -727,6 +1074,7 @@ export default function ReferencePage() {
                               text-xs
                               font-medium
                               text-gray-700
+
                               transition-all
                               duration-200
 
@@ -743,15 +1091,20 @@ export default function ReferencePage() {
                               dark:hover:text-slate-950
                             "
                           >
-                            <PlusIcon size={14} />
+                            <PlusIcon
+                              size={14}
+                            />
 
-                            {ref.programme?.length
+                            {ref.programme
+                              ?.length
                               ? "Modifier"
                               : "Ajouter"}
                           </button>
                         </td>
 
-                        {/* ACTIONS */}
+                        {/* ====================================
+                            ACTIONS
+                        ==================================== */}
 
                         <td
                           className="
@@ -767,13 +1120,14 @@ export default function ReferencePage() {
                               gap-2
                             "
                           >
-
                             {/* MODIFIER */}
 
                             <button
                               type="button"
                               onClick={() =>
-                                handleEdit(ref)
+                                handleEdit(
+                                  ref
+                                )
                               }
                               className="
                                 flex
@@ -782,10 +1136,13 @@ export default function ReferencePage() {
                                 items-center
                                 justify-center
                                 rounded-lg
+
                                 border
                                 border-gray-300
                                 bg-white
+
                                 text-gray-600
+
                                 transition-all
                                 duration-200
 
@@ -803,7 +1160,9 @@ export default function ReferencePage() {
                               "
                               title="Modifier"
                             >
-                              <Pencil size={16} />
+                              <Pencil
+                                size={16}
+                              />
                             </button>
 
                             {/* SUPPRIMER */}
@@ -811,7 +1170,9 @@ export default function ReferencePage() {
                             <button
                               type="button"
                               onClick={() =>
-                                handleDelete(ref.id)
+                                handleDelete(
+                                  ref.id
+                                )
                               }
                               className="
                                 flex
@@ -820,8 +1181,10 @@ export default function ReferencePage() {
                                 items-center
                                 justify-center
                                 rounded-lg
+
                                 bg-red-50
                                 text-red-600
+
                                 transition-all
                                 duration-200
 
@@ -833,25 +1196,24 @@ export default function ReferencePage() {
                               "
                               title="Supprimer"
                             >
-                              <Trash2 size={16} />
+                              <Trash2
+                                size={16}
+                              />
                             </button>
-
                           </div>
                         </td>
-
                       </tr>
                     )
                   )
                 )}
-
               </tbody>
             </table>
           </div>
         </section>
 
-        {/* ===================================================
+        {/* ====================================================
             MODAL REFERENCE
-        =================================================== */}
+        ==================================================== */}
 
         <ReferenceModal
           open={openModal}
@@ -864,9 +1226,9 @@ export default function ReferencePage() {
           edit={editMode}
         />
 
-        {/* ===================================================
+        {/* ====================================================
             MODAL PROGRAMME
-        =================================================== */}
+        ==================================================== */}
 
         <ProgrammeModal
           open={programmeModal}
@@ -879,12 +1241,11 @@ export default function ReferencePage() {
           edit={programmeEdit}
         />
 
-        {/* ===================================================
+        {/* ====================================================
             MODAL DELETE
-        =================================================== */}
+        ==================================================== */}
 
         {deleteModal && (
-
           <div
             className="
               fixed
@@ -893,23 +1254,30 @@ export default function ReferencePage() {
               flex
               items-center
               justify-center
+
               bg-black/40
+
               px-4
 
               dark:bg-black/70
             "
           >
-
             <div
               className="
                 w-full
                 max-w-md
+
                 rounded-2xl
+
                 border
                 border-gray-200
+
                 bg-white
+
                 p-6
+
                 shadow-2xl
+
                 transition-colors
                 duration-300
 
@@ -917,6 +1285,7 @@ export default function ReferencePage() {
                 dark:bg-slate-900
               "
             >
+              {/* TITRE */}
 
               <h2
                 className="
@@ -930,6 +1299,8 @@ export default function ReferencePage() {
                 Supprimer la référence
               </h2>
 
+              {/* MESSAGE */}
+
               <p
                 className="
                   mt-2
@@ -939,9 +1310,12 @@ export default function ReferencePage() {
                   dark:text-slate-400
                 "
               >
-                Êtes-vous sûr de vouloir supprimer
-                cette référence ?
+                Êtes-vous sûr de vouloir
+                supprimer cette référence ?
+                Cette action est irréversible.
               </p>
+
+              {/* BOUTONS */}
 
               <div
                 className="
@@ -949,30 +1323,43 @@ export default function ReferencePage() {
                   flex
                   justify-end
                   gap-3
+
                   border-t
                   border-gray-100
+
                   pt-5
 
                   dark:border-slate-800
                 "
               >
+                {/* ANNULER */}
 
                 <button
                   type="button"
                   onClick={() => {
-                    setDeleteModal(false);
-                    setReferenceToDelete(null);
+                    setDeleteModal(
+                      false
+                    );
+
+                    setReferenceToDelete(
+                      null
+                    );
                   }}
                   className="
                     rounded-lg
+
                     border
                     border-gray-300
+
                     bg-white
+
                     px-4
                     py-2
+
                     text-sm
                     font-medium
                     text-gray-700
+
                     transition-all
                     duration-200
 
@@ -992,20 +1379,29 @@ export default function ReferencePage() {
                   Annuler
                 </button>
 
+                {/* SUPPRIMER */}
+
                 <button
                   type="button"
-                  onClick={confirmDelete}
+                  onClick={
+                    confirmDelete
+                  }
                   className="
                     flex
                     items-center
                     gap-2
+
                     rounded-lg
+
                     bg-red-600
+
                     px-4
                     py-2
+
                     text-sm
                     font-semibold
                     text-white
+
                     transition-all
                     duration-200
 
@@ -1016,16 +1412,16 @@ export default function ReferencePage() {
                     dark:hover:bg-red-400
                   "
                 >
-                  <Trash2 size={16} />
+                  <Trash2
+                    size={16}
+                  />
+
                   Supprimer
                 </button>
-
               </div>
-
             </div>
           </div>
         )}
-
       </main>
     </>
   );

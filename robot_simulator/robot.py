@@ -48,25 +48,18 @@ BOTTOM_DIR = os.path.join(
     "bottom"
 )
 
-os.makedirs(
-    TOP_DIR,
-    exist_ok=True
-)
-
-os.makedirs(
-    BOTTOM_DIR,
-    exist_ok=True
-)
+os.makedirs(TOP_DIR, exist_ok=True)
+os.makedirs(BOTTOM_DIR, exist_ok=True)
 
 
 print("")
 print("======================================")
 print(" DOSSIERS CAPTURES")
 print("======================================")
-print("Robot     :", ROBOT_DIR)
-print("Captures  :", CAPTURES_DIR)
-print("TOP       :", TOP_DIR)
-print("BOTTOM    :", BOTTOM_DIR)
+print("Robot    :", ROBOT_DIR)
+print("Captures :", CAPTURES_DIR)
+print("TOP      :", TOP_DIR)
+print("BOTTOM   :", BOTTOM_DIR)
 print("======================================")
 
 
@@ -84,7 +77,48 @@ camera_ready = False
 
 
 # ============================================================
-# OUVRIR CAMERA
+# ETAT INSPECTION
+# ============================================================
+
+production = None
+
+operatorId = None
+
+inspection_running = False
+
+inspection_pause_event = threading.Event()
+
+inspection_lock = threading.Lock()
+
+inspection_thread = None
+
+
+# ============================================================
+# INFORMATIONS INSPECTION
+# ============================================================
+
+current_numero_sn = 0
+
+current_nombre_sn = 0
+
+current_sn = ""
+
+current_progress = 0
+
+current_remaining = 0
+
+inspection_completed = 0
+
+# ------------------------------------------------------------
+# IMPORTANT :
+# seconde exacte de la carte courante
+# ------------------------------------------------------------
+
+current_second = 0
+
+
+# ============================================================
+# OUVERTURE CAMERA
 # ============================================================
 
 def open_camera():
@@ -97,10 +131,6 @@ def open_camera():
     print(" OUVERTURE CAMERA")
     print("======================================")
 
-    # --------------------------------------------------------
-    # Fermer ancienne caméra
-    # --------------------------------------------------------
-
     if camera is not None:
 
         try:
@@ -112,45 +142,32 @@ def open_camera():
 
         time.sleep(1)
 
-
-    # --------------------------------------------------------
-    # Ouvrir webcam intégrée
-    # --------------------------------------------------------
-
-    print("Tentative ouverture caméra index 0...")
+    print(
+        "Tentative ouverture caméra index 0..."
+    )
 
     camera = cv2.VideoCapture(
         0,
         cv2.CAP_DSHOW
     )
 
-
     if not camera.isOpened():
 
         print(
-            "❌ Impossible d'ouvrir la caméra avec CAP_DSHOW"
+            "⚠️ CAP_DSHOW impossible"
         )
-
-        # ----------------------------------------------------
-        # Deuxième tentative
-        # ----------------------------------------------------
 
         camera = cv2.VideoCapture(0)
 
     if not camera.isOpened():
 
         print(
-            "❌ Impossible d'ouvrir la webcam"
+            "❌ Impossible d'ouvrir webcam"
         )
 
         camera_ready = False
 
         return False
-
-
-    # --------------------------------------------------------
-    # Configuration
-    # --------------------------------------------------------
 
     camera.set(
         cv2.CAP_PROP_FRAME_WIDTH,
@@ -162,31 +179,20 @@ def open_camera():
         480
     )
 
-
-    # --------------------------------------------------------
-    # Format MJPG
-    # --------------------------------------------------------
-
     camera.set(
         cv2.CAP_PROP_FOURCC,
-        cv2.VideoWriter_fourcc(
-            *"MJPG"
-        )
+        cv2.VideoWriter_fourcc(*"MJPG")
     )
-
-
-    # --------------------------------------------------------
-    # FPS
-    # --------------------------------------------------------
 
     camera.set(
         cv2.CAP_PROP_FPS,
         30
     )
 
-
-    print("")
-    print("Camera ouverte :", camera.isOpened())
+    print(
+        "Camera ouverte :",
+        camera.isOpened()
+    )
 
     print(
         "Largeur :",
@@ -209,14 +215,9 @@ def open_camera():
         )
     )
 
-
-    # --------------------------------------------------------
-    # IMPORTANT :
-    # laisser la webcam se stabiliser
-    # --------------------------------------------------------
-
-    print("")
-    print("Stabilisation caméra...")
+    print(
+        "Stabilisation caméra..."
+    )
 
     valid_frame = False
 
@@ -233,42 +234,33 @@ def open_camera():
                 f"| mean={mean_value:.2f}"
             )
 
-            if mean_value > 2:
+            if frame.max() > 2:
 
                 valid_frame = True
 
         time.sleep(0.05)
 
+    camera_ready = valid_frame
 
-    if valid_frame:
+    if camera_ready:
 
-        camera_ready = True
-
-        print("")
         print("✅ CAMERA PRETE")
 
     else:
 
-        camera_ready = False
-
-        print("")
         print(
             "⚠️ Camera ouverte mais frames noires"
         )
 
-        print(
-            "Vérifie qu'aucun autre programme "
-            "n'utilise la webcam."
-        )
-
-
-    print("======================================")
+    print(
+        "======================================"
+    )
 
     return camera_ready
 
 
 # ============================================================
-# OUVERTURE CAMERA
+# DEMARRAGE CAMERA
 # ============================================================
 
 if not open_camera():
@@ -290,15 +282,9 @@ def camera_reader():
     print("")
     print("📷 Thread caméra démarré")
 
-
     compteur_erreur = 0
 
-
     while True:
-
-        # ----------------------------------------------------
-        # Vérifier caméra
-        # ----------------------------------------------------
 
         if camera is None:
 
@@ -306,43 +292,29 @@ def camera_reader():
 
             continue
 
-
-        # ----------------------------------------------------
-        # Lire frame
-        # ----------------------------------------------------
-
         ret, frame = camera.read()
-
 
         if not ret or frame is None:
 
             compteur_erreur += 1
 
             print(
-                "❌ Erreur lecture caméra :",
+                "❌ Erreur caméra :",
                 compteur_erreur
             )
 
             time.sleep(0.1)
 
-
-            # ------------------------------------------------
-            # Reconnexion après plusieurs erreurs
-            # ------------------------------------------------
-
             if compteur_erreur >= 20:
 
                 print(
-                    "⚠️ Tentative reconnexion caméra..."
+                    "⚠️ Reconnexion caméra..."
                 )
 
                 try:
-
                     camera.release()
-
                 except Exception:
                     pass
-
 
                 time.sleep(1)
 
@@ -350,29 +322,11 @@ def camera_reader():
 
                 compteur_erreur = 0
 
-
             continue
-
 
         compteur_erreur = 0
 
-
-        # ----------------------------------------------------
-        # Vérification image
-        # ----------------------------------------------------
-
-        mean_value = frame.mean()
-
-        max_value = frame.max()
-
-        min_value = frame.min()
-
-
-        # ----------------------------------------------------
-        # Si frame correcte
-        # ----------------------------------------------------
-
-        if max_value > 2:
+        if frame.max() > 2:
 
             with camera_lock:
 
@@ -380,27 +334,8 @@ def camera_reader():
 
             camera_ready = True
 
-
-        else:
-
-            # ------------------------------------------------
-            # Frame noire
-            # ------------------------------------------------
-
-            print(
-                "⚠️ Frame noire détectée "
-                f"| min={min_value} "
-                f"| max={max_value} "
-                f"| mean={mean_value:.2f}"
-            )
-
-
         time.sleep(0.03)
 
-
-# ============================================================
-# THREAD CAMERA
-# ============================================================
 
 camera_thread = threading.Thread(
     target=camera_reader,
@@ -417,10 +352,6 @@ camera_thread.start()
 app = Flask(__name__)
 
 
-# ============================================================
-# FRAME ACTUELLE
-# ============================================================
-
 def get_current_frame():
 
     with camera_lock:
@@ -433,7 +364,7 @@ def get_current_frame():
 
 
 # ============================================================
-# STREAM CAMERA
+# CAMERA STREAM
 # ============================================================
 
 def camera_stream():
@@ -442,17 +373,11 @@ def camera_stream():
 
         frame = get_current_frame()
 
-
         if frame is None:
 
             time.sleep(0.03)
 
             continue
-
-
-        # ----------------------------------------------------
-        # Encodage JPG
-        # ----------------------------------------------------
 
         ret, buffer = cv2.imencode(
             ".jpg",
@@ -463,89 +388,58 @@ def camera_stream():
             ]
         )
 
-
         if not ret:
 
             continue
 
-
         jpg = buffer.tobytes()
 
-
         yield (
-
             b"--frame\r\n"
-
             b"Content-Type: image/jpeg\r\n"
-
             b"Cache-Control: no-cache\r\n"
-
             b"Pragma: no-cache\r\n\r\n"
-
             + jpg
-
             + b"\r\n"
-
         )
 
-
-# ============================================================
-# CAMERA TOP
-# ============================================================
 
 @app.route("/camera/top")
 def camera_top():
 
     return Response(
-
         camera_stream(),
-
         mimetype=(
-            "multipart/x-mixed-replace; "
-            "boundary=frame"
+            "multipart/x-mixed-replace;"
+            " boundary=frame"
         ),
-
         headers={
             "Cache-Control": "no-cache",
             "Pragma": "no-cache"
         }
-
     )
 
-
-# ============================================================
-# CAMERA BOTTOM
-# ============================================================
 
 @app.route("/camera/bottom")
 def camera_bottom():
 
     return Response(
-
         camera_stream(),
-
         mimetype=(
-            "multipart/x-mixed-replace; "
-            "boundary=frame"
+            "multipart/x-mixed-replace;"
+            " boundary=frame"
         ),
-
         headers={
             "Cache-Control": "no-cache",
             "Pragma": "no-cache"
         }
-
     )
 
-
-# ============================================================
-# SNAPSHOT
-# ============================================================
 
 @app.route("/camera/snapshot")
 def camera_snapshot():
 
     frame = get_current_frame()
-
 
     if frame is None:
 
@@ -553,7 +447,6 @@ def camera_snapshot():
             "Camera not ready",
             503
         )
-
 
     ret, buffer = cv2.imencode(
         ".jpg",
@@ -564,32 +457,22 @@ def camera_snapshot():
         ]
     )
 
-
     if not ret:
 
         return (
-            "Erreur encodage image",
+            "Erreur encodage",
             500
         )
 
-
     return Response(
-
         buffer.tobytes(),
-
         mimetype="image/jpeg",
-
         headers={
             "Cache-Control": "no-cache",
             "Pragma": "no-cache"
         }
-
     )
 
-
-# ============================================================
-# SERVEUR CAMERA
-# ============================================================
 
 def start_camera_server():
 
@@ -615,32 +498,18 @@ def start_camera_server():
 
     print("======================================")
 
-
     app.run(
-
         host="0.0.0.0",
-
         port=CAMERA_PORT,
-
         threaded=True,
-
         debug=False,
-
         use_reloader=False
-
     )
 
 
-# ============================================================
-# THREAD FLASK
-# ============================================================
-
 flask_thread = threading.Thread(
-
     target=start_camera_server,
-
     daemon=True
-
 )
 
 flask_thread.start()
@@ -651,19 +520,9 @@ flask_thread.start()
 # ============================================================
 
 sio = socketio.Client(
-
     reconnection=True,
-
     reconnection_attempts=0
-
 )
-
-
-production = None
-
-operatorId = None
-
-inspection_active = False
 
 
 # ============================================================
@@ -675,24 +534,24 @@ def connect():
 
     print("")
     print("======================================")
-    print(" ROBOT CONNECTE AU BACKEND")
+    print("🤖 ROBOT CONNECTE AU BACKEND")
     print("======================================")
 
-
     sio.emit(
-
         "robot:connect",
-
         {
             "robotId": ROBOT_ID
         }
-
     )
 
 
-# ============================================================
-# SOCKET DISCONNECT
-# ============================================================
+@sio.on("robot:ready")
+def robot_ready(data):
+
+    print("")
+    print("🤖 ROBOT READY")
+    print(data)
+
 
 @sio.event
 def disconnect():
@@ -716,47 +575,28 @@ def generate_unique_filename(
         "%Y%m%d_%H%M%S_%f"
     )
 
-
-    safe_sn = str(SN)
-
-    safe_sn = safe_sn.replace(
+    safe_sn = str(SN).replace(
         "/",
         "_"
-    )
-
-    safe_sn = safe_sn.replace(
+    ).replace(
         "\\",
         "_"
     )
 
-
-    safe_prf = str(PRF)
-
-    safe_prf = safe_prf.replace(
+    safe_prf = str(PRF).replace(
         "/",
         "_"
-    )
-
-    safe_prf = safe_prf.replace(
+    ).replace(
         "\\",
         "_"
     )
 
-
-    filename = (
-
+    return (
         f"{safe_sn}_"
-
         f"{safe_prf}_"
-
         f"{timestamp}_"
-
         f"{position}.jpg"
-
     )
-
-
-    return filename
 
 
 # ============================================================
@@ -772,231 +612,75 @@ def save_inspection_image(
 
     if frame is None:
 
-        print(
-            "❌ Frame vide"
-        )
-
         return None
-
-
-    # --------------------------------------------------------
-    # Vérification
-    # --------------------------------------------------------
-
-    print("")
-    print("======================================")
-    print(" VERIFICATION FRAME")
-    print("======================================")
-
-    print(
-        "Shape :",
-        frame.shape
-    )
-
-    print(
-        "Min   :",
-        frame.min()
-    )
-
-    print(
-        "Max   :",
-        frame.max()
-    )
-
-    print(
-        "Mean  :",
-        frame.mean()
-    )
-
-    print("======================================")
-
-
-    # --------------------------------------------------------
-    # Détection frame noire
-    # --------------------------------------------------------
 
     if frame.max() <= 2:
 
-        print(
-            "❌ FRAME COMPLETEMENT NOIRE"
-        )
-
         return None
 
-
-    # --------------------------------------------------------
-    # Dossier
-    # --------------------------------------------------------
-
-    if position == "TOP":
-
-        folder = TOP_DIR
-
-    else:
-
-        folder = BOTTOM_DIR
-
-
-    os.makedirs(
-        folder,
-        exist_ok=True
+    folder = (
+        TOP_DIR
+        if position == "TOP"
+        else BOTTOM_DIR
     )
-
-
-    # --------------------------------------------------------
-    # Nom
-    # --------------------------------------------------------
 
     filename = generate_unique_filename(
-
         SN,
-
         PRF,
-
         position
-
     )
-
-
-    # --------------------------------------------------------
-    # Chemin
-    # --------------------------------------------------------
 
     path = os.path.join(
-
         folder,
-
         filename
-
     )
 
-
-    # --------------------------------------------------------
-    # Sauvegarde
-    # --------------------------------------------------------
-
     saved = cv2.imwrite(
-
         path,
-
         frame,
-
         [
             cv2.IMWRITE_JPEG_QUALITY,
             95
         ]
-
-    )
-
-
-    print("")
-    print("======================================")
-    print(" IMAGE SAUVEGARDEE")
-    print("======================================")
-
-    print(
-        "SN       :",
-        SN
     )
 
     print(
-        "PRF      :",
-        PRF
-    )
-
-    print(
-        "Position :",
-        position
-    )
-
-    print(
-        "Path     :",
-        path
-    )
-
-    print(
-        "Saved    :",
+        "📸 Image",
+        position,
+        "|",
+        path,
+        "| saved =",
         saved
     )
-
-    print(
-        "Existe   :",
-        os.path.exists(path)
-    )
-
-
-    if os.path.exists(path):
-
-        print(
-            "Taille   :",
-            os.path.getsize(path),
-            "bytes"
-        )
-
-
-    print("======================================")
-
 
     if not saved:
 
         return None
 
-
-    # --------------------------------------------------------
-    # URL NestJS
-    # --------------------------------------------------------
-
     if position == "TOP":
 
-        url = (
-
+        return (
             f"{SERVER_URL}"
-
             f"/captures/top/"
-
             f"{filename}"
-
         )
 
-    else:
-
-        url = (
-
-            f"{SERVER_URL}"
-
-            f"/captures/bottom/"
-
-            f"{filename}"
-
-        )
-
-
-    print(
-        "URL envoyée à NestJS :",
-        url
+    return (
+        f"{SERVER_URL}"
+        f"/captures/bottom/"
+        f"{filename}"
     )
 
 
-    return url
-
-
 # ============================================================
-# ANALYSE ALEATOIRE
+# ANALYSE
 # ============================================================
 
 def analyse_carte_aleatoire(
     zones_programme
 ):
 
-    is_good = (
-        random.random()
-        < 0.60
-    )
-
-
-    # --------------------------------------------------------
-    # GOOD
-    # --------------------------------------------------------
+    is_good = random.random() < 0.60
 
     if is_good:
 
@@ -1005,29 +689,14 @@ def analyse_carte_aleatoire(
             []
         )
 
-
-    # --------------------------------------------------------
-    # NOT GOOD
-    # --------------------------------------------------------
-
     resultat = "NOT_GOOD"
 
-
     if not zones_programme:
-
-        print(
-            "⚠️ Aucune zone trouvée"
-        )
 
         return (
             resultat,
             []
         )
-
-
-    # --------------------------------------------------------
-    # Zones valides
-    # --------------------------------------------------------
 
     zones_valides = [
 
@@ -1036,27 +705,15 @@ def analyse_carte_aleatoire(
         for zone in zones_programme
 
         if zone.get("id")
-
         and zone.get("nom")
-
     ]
 
-
     if not zones_valides:
-
-        print(
-            "⚠️ Aucune zone valide"
-        )
 
         return (
             resultat,
             []
         )
-
-
-    # --------------------------------------------------------
-    # Types défauts
-    # --------------------------------------------------------
 
     types_defauts = [
 
@@ -1069,48 +726,27 @@ def analyse_carte_aleatoire(
         "Rayure",
 
         "Défaut de piste"
-
     ]
 
-
-    # --------------------------------------------------------
-    # Nombre défauts
-    # --------------------------------------------------------
-
     nombre_defauts = random.randint(
-
         1,
-
         min(
             3,
             len(zones_valides)
         )
-
     )
-
-
-    # --------------------------------------------------------
-    # Zones sélectionnées
-    # --------------------------------------------------------
 
     zones_selectionnees = random.sample(
-
         zones_valides,
-
         nombre_defauts
-
     )
 
-
     defauts = []
-
 
     for zone in zones_selectionnees:
 
         defauts.append(
-
             {
-
                 "defautdetecte":
                     random.choice(
                         types_defauts
@@ -1118,11 +754,8 @@ def analyse_carte_aleatoire(
 
                 "zoneId":
                     zone["id"]
-
             }
-
         )
-
 
     return (
         resultat,
@@ -1131,7 +764,62 @@ def analyse_carte_aleatoire(
 
 
 # ============================================================
-# START INSPECTION
+# ATTENDRE FRAME
+# ============================================================
+
+def wait_for_valid_frame(
+    timeout=5
+):
+
+    start_time = time.time()
+
+    while (
+        time.time() - start_time
+        < timeout
+    ):
+
+        frame = get_current_frame()
+
+        if frame is not None:
+
+            if frame.max() > 2:
+
+                return frame
+
+        time.sleep(0.1)
+
+    return None
+
+
+# ============================================================
+# ATTENDRE REPRISE
+# ============================================================
+
+def wait_if_paused():
+
+    global inspection_running
+
+    with inspection_lock:
+
+        running = inspection_running
+
+    if not running:
+
+        return False
+
+    print("")
+    print("⏸️ INSPECTION EN PAUSE")
+    print("⏳ En attente de REPRENDRE...")
+
+    inspection_pause_event.wait()
+
+    with inspection_lock:
+
+        return inspection_running
+
+
+# ============================================================
+# START / REPRENDRE
 # ============================================================
 
 @sio.on("START")
@@ -1139,31 +827,163 @@ def start(data):
 
     global production
     global operatorId
-    global inspection_active
 
+    global inspection_running
+    global inspection_thread
+
+    global current_nombre_sn
 
     print("")
     print("======================================")
-    print(" START INSPECTION")
+    print("▶️ START / REPRENDRE")
     print("======================================")
 
+    if not data:
 
-    try:
+        print("❌ START sans données")
 
-        production = data["production"]
+        return
 
-        operatorId = data["operatorId"]
+    new_production = data.get(
+        "production"
+    )
 
+    new_operator = data.get(
+        "operatorId"
+    )
 
-    except Exception as e:
+    # ========================================================
+    # VERIFIER SI UNE INSPECTION EXISTE DEJA
+    # ========================================================
+
+    with inspection_lock:
+
+        already_running = inspection_running
+
+        current_production = production
+
+    # ========================================================
+    # REPRISE
+    # ========================================================
+
+    if already_running:
+
+        if current_production is not None:
+
+            current_prf = (
+                current_production.get("PRF")
+            )
+
+            new_prf = (
+                new_production.get("PRF")
+                if new_production
+                else data.get("PRF")
+            )
+
+            if (
+                current_prf
+                and new_prf
+                and
+                str(current_prf)
+                ==
+                str(new_prf)
+            ):
+
+                print("")
+                print("======================================")
+                print("🔄 REPRISE DE L'INSPECTION")
+                print("======================================")
+
+                with inspection_lock:
+
+                    inspection_running = True
+
+                inspection_pause_event.set()
+
+                sio.emit(
+                    "inspection:resumed",
+                    {
+                        "PRF":
+                            current_prf,
+
+                        "SN":
+                            current_sn,
+
+                        "numeroSN":
+                            current_numero_sn,
+
+                        "nombreSN":
+                            current_nombre_sn,
+
+                        "completed":
+                            inspection_completed,
+
+                        "remainingSN":
+                            max(
+                                current_nombre_sn
+                                -
+                                inspection_completed,
+                                0
+                            ),
+
+                        "progress":
+                            current_progress,
+
+                        "remaining":
+                            current_remaining,
+
+                        "message":
+                            "Inspection reprise"
+                    }
+                )
+
+                print(
+                    "✅ Event de reprise envoyé"
+                )
+
+                return
 
         print(
-            "❌ Données START invalides :",
-            e
+            "⚠️ Une autre inspection est déjà active"
         )
 
         return
 
+    # ========================================================
+    # NOUVELLE INSPECTION
+    # ========================================================
+
+    if not new_production:
+
+        print(
+            "❌ Production absente"
+        )
+
+        return
+
+    production = new_production
+
+    operatorId = new_operator
+
+    with inspection_lock:
+
+        inspection_running = True
+
+        current_numero_sn = 0
+
+        current_nombre_sn = 0
+
+        current_sn = ""
+
+        current_progress = 0
+
+        current_remaining = 0
+
+        inspection_completed = 0
+
+        current_second = 0
+
+    inspection_pause_event.set()
 
     print(
         "Production :",
@@ -1175,105 +995,249 @@ def start(data):
         operatorId
     )
 
+    inspection_thread = threading.Thread(
+        target=inspection_loop,
+        daemon=True
+    )
 
-    if inspection_active:
+    inspection_thread.start()
+
+    print(
+        "✅ Thread inspection démarré"
+    )
+
+
+# ============================================================
+# STOP / PAUSE
+# ============================================================
+
+@sio.on("STOP")
+def stop(data=None):
+
+    global inspection_running
+
+    print("")
+    print("======================================")
+    print("⏸️ STOP / PAUSE REÇU")
+    print("======================================")
+
+    PRF = (
+        data.get("PRF")
+        if data
+        else (
+            production.get("PRF")
+            if production
+            else None
+        )
+    )
+
+    if not PRF:
 
         print(
-            "⚠️ Inspection déjà active"
+            "❌ STOP sans PRF"
         )
 
         return
 
+    with inspection_lock:
 
-    inspection_active = True
-
-
-    threading.Thread(
-
-        target=inspection_loop,
-
-        daemon=True
-
-    ).start()
-
-
-# ============================================================
-# STOP INSPECTION
-# ============================================================
-
-@sio.on("STOP")
-def stop():
-
-    global inspection_active
-
-
-    print("")
-    print(
-        "🛑 STOP INSPECTION"
-    )
-
-
-    inspection_active = False
-
-
-# ============================================================
-# ATTENDRE UNE FRAME VALIDE
-# ============================================================
-
-def wait_for_valid_frame(
-    timeout=5
-):
-
-    print("")
-    print(
-        "Recherche d'une frame valide..."
-    )
-
-
-    start_time = time.time()
-
-
-    while (
-        time.time() - start_time
-        <
-        timeout
-    ):
-
-        frame = get_current_frame()
-
-
-        if frame is not None:
-
-            mean_value = frame.mean()
-
-            max_value = frame.max()
-
+        if not inspection_running:
 
             print(
-                f"Frame test "
-                f"mean={mean_value:.2f} "
-                f"max={max_value}"
+                "⚠️ Aucune inspection active"
             )
 
+            return
 
-            if max_value > 2:
+        numero = current_numero_sn
 
-                print(
-                    "✅ Frame valide trouvée"
-                )
+        total = current_nombre_sn
 
-                return frame
+        sn = current_sn
 
+        progress = current_progress
 
-        time.sleep(0.1)
+        remaining = current_remaining
 
+        completed = inspection_completed
+
+        second = current_second
+
+    # --------------------------------------------------------
+    # IMPORTANT :
+    #
+    # inspection_running reste TRUE.
+    #
+    # On bloque seulement l'Event.
+    # --------------------------------------------------------
+
+    inspection_pause_event.clear()
+
+    cartes_restantes = max(
+        total - completed,
+        0
+    )
 
     print(
-        "❌ Impossible de trouver une frame valide"
+        "PRF              :",
+        PRF
+    )
+
+    print(
+        "SN actuel        :",
+        sn
+    )
+
+    print(
+        "Carte actuelle   :",
+        f"{numero}/{total}"
+    )
+
+    print(
+        "Seconde actuelle :",
+        second
+    )
+
+    print(
+        "Terminées        :",
+        completed
+    )
+
+    print(
+        "Restantes        :",
+        cartes_restantes
+    )
+
+    print(
+        "Progression      :",
+        progress,
+        "%"
+    )
+
+    print(
+        "======================================"
+    )
+
+    sio.emit(
+        "inspection:stopped",
+        {
+            "PRF":
+                PRF,
+
+            "SN":
+                sn,
+
+            "numeroSN":
+                numero,
+
+            "nombreSN":
+                total,
+
+            "completed":
+                completed,
+
+            "remainingSN":
+                cartes_restantes,
+
+            "progress":
+                progress,
+
+            "remaining":
+                remaining,
+
+            "second":
+                second,
+
+            "paused":
+                True,
+
+            "message":
+                "Inspection mise en pause"
+        }
     )
 
 
-    return None
+# ============================================================
+# FIN INSPECTION
+# ============================================================
+
+def finish_inspection(
+    PRF,
+    nombreSN
+):
+
+    global inspection_running
+    global inspection_completed
+    global current_numero_sn
+    global current_progress
+    global current_remaining
+    global current_second
+
+    with inspection_lock:
+
+        inspection_running = False
+
+        inspection_completed = nombreSN
+
+        current_numero_sn = nombreSN
+
+        current_progress = 100
+
+        current_remaining = 0
+
+        current_second = 0
+
+    inspection_pause_event.clear()
+
+    print("")
+    print("======================================")
+    print("🏁 INSPECTION TERMINÉE")
+    print("======================================")
+
+    print(
+        "PRF :",
+        PRF
+    )
+
+    print(
+        "Total :",
+        nombreSN
+    )
+
+    print(
+        "Terminées :",
+        inspection_completed
+    )
+
+    print(
+        "Restantes :",
+        0
+    )
+
+    print("======================================")
+
+    sio.emit(
+        "inspection:finished",
+        {
+            "PRF":
+                PRF,
+
+            "nombreSN":
+                nombreSN,
+
+            "completed":
+                nombreSN,
+
+            "remainingSN":
+                0,
+
+            "progress":
+                100,
+
+            "message":
+                "Toutes les inspections sont terminées"
+        }
+    )
 
 
 # ============================================================
@@ -1282,132 +1246,318 @@ def wait_for_valid_frame(
 
 def inspection_loop():
 
-    global inspection_active
+    global inspection_running
 
+    global current_numero_sn
+    global current_nombre_sn
+    global current_sn
+    global current_progress
+    global current_remaining
+    global inspection_completed
+    global current_second
 
-    numero = 1
+    # ========================================================
+    # PRODUCTION
+    # ========================================================
 
+    if production is None:
 
-    while inspection_active:
+        print(
+            "❌ Production absente"
+        )
+
+        with inspection_lock:
+
+            inspection_running = False
+
+        return
+
+    PRF = production.get(
+        "PRF"
+    )
+
+    OF = production.get(
+        "OF"
+    )
+
+    parametres = production.get(
+        "parametres",
+        {}
+    )
+
+    nombre_sn = (
+
+        parametres.get("nombreSN")
+
+        or production.get("nombreSN")
+
+        or production.get("nombreSn")
+
+        or production.get("quantite")
+
+        or production.get("quantiteSN")
+
+        or production.get("nombrePieces")
+
+        or 1
+    )
+
+    try:
+
+        nombre_sn = int(
+            nombre_sn
+        )
+
+    except Exception:
+
+        nombre_sn = 1
+
+    if nombre_sn <= 0:
+
+        nombre_sn = 1
+
+    # ========================================================
+    # INITIALISATION
+    # ========================================================
+
+    with inspection_lock:
+
+        if current_nombre_sn == 0:
+
+            current_nombre_sn = nombre_sn
+
+    print("")
+    print("======================================")
+    print(" CONFIGURATION")
+    print("======================================")
+
+    print(
+        "PRF       :",
+        PRF
+    )
+
+    print(
+        "OF        :",
+        OF
+    )
+
+    print(
+        "Nombre SN :",
+        nombre_sn
+    )
+
+    print("======================================")
+
+    sio.emit(
+        "inspection:configuration",
+        {
+            "PRF":
+                PRF,
+
+            "nombreSN":
+                nombre_sn
+        }
+    )
+
+    # ========================================================
+    # BOUCLE CARTES
+    # ========================================================
+
+    while True:
 
         # ----------------------------------------------------
-        # Vérifier production
+        # VERIFIER FIN
         # ----------------------------------------------------
 
-        if production is None:
+        with inspection_lock:
 
-            print(
-                "❌ Production absente"
+            completed = inspection_completed
+
+            running = inspection_running
+
+        if completed >= nombre_sn:
+
+            finish_inspection(
+                PRF,
+                nombre_sn
             )
-
-            inspection_active = False
 
             return
 
+        # ----------------------------------------------------
+        # SI STOP
+        # ----------------------------------------------------
+
+        if not running:
+
+            return
 
         # ----------------------------------------------------
-        # Données
+        # SI PAUSE
         # ----------------------------------------------------
 
-        PRF = production["PRF"]
+        if not inspection_pause_event.is_set():
 
-        OF = production["OF"]
+            if not wait_if_paused():
 
+                return
 
         # ----------------------------------------------------
-        # SN
+        # NUMERO CARTE
         # ----------------------------------------------------
+
+        numero = (
+            inspection_completed + 1
+        )
+
+        with inspection_lock:
+
+            current_numero_sn = numero
 
         SN = f"SNXXA{numero:05d}"
 
+        # ----------------------------------------------------
+        # IMPORTANT :
+        #
+        # On récupère la seconde existante.
+        #
+        # Pour une nouvelle carte = 0
+        #
+        # Pour une reprise = seconde où STOP a été fait.
+        # ----------------------------------------------------
+
+        with inspection_lock:
+
+            if current_sn != SN:
+
+                current_second = 0
+
+            seconde = current_second
+
+            current_sn = SN
+
+            current_progress = int(
+                (seconde / 30) * 100
+            )
+
+            current_remaining = max(
+                30 - seconde,
+                0
+            )
 
         print("")
-        print("")
         print("======================================")
-        print(" NOUVELLE INSPECTION")
+        print(
+            f"🔎 INSPECTION {numero}/{nombre_sn}"
+        )
         print("======================================")
 
         print(
-            "SN  :",
+            "SN :",
             SN
         )
 
         print(
-            "PRF :",
-            PRF
+            "Seconde de départ :",
+            seconde
         )
 
-        print(
-            "OF  :",
-            OF
-        )
-
-        print("======================================")
-
-
-        # ----------------------------------------------------
-        # Temps
-        # ----------------------------------------------------
+        # ====================================================
+        # INSPECTION COURANTE
+        # ====================================================
 
         temps_total = 30
-
 
         image_top = None
 
         image_bottom = None
 
+        # ====================================================
+        # BOUCLE TEMPS
+        # ====================================================
 
-        # ----------------------------------------------------
-        # Inspection
-        # ----------------------------------------------------
-
-        for seconde in range(
-            temps_total
-        ):
-
-            if not inspection_active:
-
-                print(
-                    "Inspection arrêtée"
-                )
-
-                return
-
+        while seconde < temps_total:
 
             # ------------------------------------------------
-            # Progression
+            # PAUSE
+            # ------------------------------------------------
+
+            if not inspection_pause_event.is_set():
+
+                with inspection_lock:
+
+                    current_second = seconde
+
+                print(
+                    f"⏸️ Pause à la seconde {seconde}"
+                )
+
+                if not wait_if_paused():
+
+                    return
+
+                print(
+                    f"▶️ Reprise à la seconde {seconde}"
+                )
+
+                continue
+
+            # ------------------------------------------------
+            # VERIFIER RUNNING
+            # ------------------------------------------------
+
+            with inspection_lock:
+
+                if not inspection_running:
+
+                    return
+
+            # ------------------------------------------------
+            # PROGRESSION
             # ------------------------------------------------
 
             progress = int(
-
                 (
                     (seconde + 1)
                     /
                     temps_total
                 )
-                *
-                100
-
+                * 100
             )
 
-
             remaining = (
-
                 temps_total
                 -
                 seconde
                 -
                 1
-
             )
 
+            with inspection_lock:
+
+                current_progress = progress
+
+                current_remaining = remaining
+
+                current_numero_sn = numero
+
+                current_sn = SN
+
+                current_second = seconde
+
+                completed = (
+                    inspection_completed
+                )
+
+            cartes_restantes = (
+                nombre_sn
+                -
+                completed
+            )
 
             sio.emit(
-
                 "inspection:progress",
-
                 {
-
                     "PRF":
                         PRF,
 
@@ -1421,140 +1571,134 @@ def inspection_loop():
                         "Analyse caméra TOP/BOTTOM",
 
                     "remaining":
-                        remaining
+                        remaining,
 
+                    "numeroSN":
+                        numero,
+
+                    "nombreSN":
+                        nombre_sn,
+
+                    "completed":
+                        completed,
+
+                    "remainingSN":
+                        cartes_restantes,
+
+                    "second":
+                        seconde
                 }
-
             )
 
-
             # ------------------------------------------------
-            # CAPTURE
+            # CAPTURE A LA 15ème SECONDE
             # ------------------------------------------------
 
             if seconde == 15:
 
-                print("")
-                print("======================================")
-                print(" 📸 CAPTURE INSPECTION")
-                print("======================================")
-
-
-                # --------------------------------------------
-                # Attendre frame valide
-                # --------------------------------------------
-
-                frame_inspection = (
-                    wait_for_valid_frame(5)
+                print(
+                    "📸 Capture image"
                 )
 
+                frame = wait_for_valid_frame(5)
 
-                if frame_inspection is None:
-
-                    print(
-                        "❌ Aucune frame valide"
-                    )
-
-
-                else:
-
-                    print(
-                        "Frame capturée :",
-                        frame_inspection.shape
-                    )
-
-                    print(
-                        "Mean :",
-                        frame_inspection.mean()
-                    )
-
-                    print(
-                        "Max :",
-                        frame_inspection.max()
-                    )
-
-
-                    # ----------------------------------------
-                    # TOP
-                    # ----------------------------------------
+                if frame is not None:
 
                     image_top = (
-
                         save_inspection_image(
-
-                            frame_inspection,
-
+                            frame,
                             SN,
-
                             PRF,
-
                             "TOP"
-
                         )
-
                     )
-
-
-                    # ----------------------------------------
-                    # BOTTOM
-                    # ----------------------------------------
 
                     image_bottom = (
-
                         save_inspection_image(
-
-                            frame_inspection,
-
+                            frame,
                             SN,
-
                             PRF,
-
                             "BOTTOM"
-
                         )
-
                     )
 
-
-                print("")
-
-                print(
-                    "TOP URL :",
-                    image_top
-                )
-
-                print(
-                    "BOTTOM URL :",
-                    image_bottom
-                )
-
+            # ------------------------------------------------
+            # ATTENDRE 1 SECONDE
+            # ------------------------------------------------
 
             time.sleep(1)
 
+            # ------------------------------------------------
+            # IMPORTANT :
+            #
+            # Si STOP pendant le sleep :
+            #
+            # on NE fait PAS seconde += 1
+            #
+            # La carte reprend exactement à cette seconde.
+            # ------------------------------------------------
+
+            if not inspection_pause_event.is_set():
+
+                with inspection_lock:
+
+                    current_second = seconde
+
+                continue
+
+            seconde += 1
+
+            with inspection_lock:
+
+                current_second = seconde
 
         # ====================================================
-        # RESULTAT
+        # FIN DES 30 SECONDES
         # ====================================================
 
-        resultat, defauts = (
+        with inspection_lock:
 
-            analyse_carte_aleatoire(
+            current_second = 30
 
-                production[
-                    "programme"
-                ][
-                    "zones"
-                ]
+            current_progress = 100
 
-            )
+            current_remaining = 0
 
+        # ====================================================
+        # VERIFIER PAUSE AVANT ANALYSE
+        # ====================================================
+
+        if not inspection_pause_event.is_set():
+
+            if not wait_if_paused():
+
+                return
+
+        # ====================================================
+        # ANALYSE
+        # ====================================================
+
+        zones = (
+            production
+            .get("programme", {})
+            .get("zones", [])
         )
 
+        resultat, defauts = (
+            analyse_carte_aleatoire(
+                zones
+            )
+        )
 
         print("")
         print("======================================")
-        print(" RESULTAT INSPECTION")
+        print("RESULTAT")
         print("======================================")
+
+        print(
+            "SN :",
+            SN
+        )
 
         print(
             "Resultat :",
@@ -1566,11 +1710,8 @@ def inspection_loop():
             defauts
         )
 
-        print("======================================")
-
-
         # ====================================================
-        # JSON
+        # JSON INSPECTION
         # ====================================================
 
         inspection = {
@@ -1601,21 +1742,7 @@ def inspection_loop():
 
             "defauts":
                 defauts
-
         }
-
-
-        print("")
-        print("======================================")
-        print(" JSON ENVOYE AU BACKEND")
-        print("======================================")
-
-        print(
-            inspection
-        )
-
-        print("======================================")
-
 
         # ====================================================
         # POST BACKEND
@@ -1624,24 +1751,15 @@ def inspection_loop():
         try:
 
             response = requests.post(
-
                 INSPECTION_URL,
-
                 json=inspection,
-
                 headers={
-
                     "x-robot-token":
                         ROBOT_TOKEN
-
                 },
-
                 timeout=10
-
             )
 
-
-            print("")
             print(
                 "STATUS :",
                 response.status_code
@@ -1652,39 +1770,113 @@ def inspection_loop():
                 response.text
             )
 
-
-            if response.status_code in [
-
+            if response.status_code not in [
                 200,
                 201
-
             ]:
 
-                sio.emit(
-
-                    "inspection:saved",
-
-                    {
-
-                        "PRF":
-                            PRF
-
-                    }
-
-                )
-
-
                 print(
-                    "✅ INSPECTION ENREGISTREE"
+                    "❌ Inspection non enregistrée"
                 )
 
+                # --------------------------------------------
+                # NE PAS incrémenter completed.
+                # La même carte sera réessayée.
+                # --------------------------------------------
 
-            else:
+                with inspection_lock:
 
-                print(
-                    "❌ ERREUR BACKEND"
+                    current_second = 0
+
+                continue
+
+            # =================================================
+            # CARTE TERMINEE
+            # =================================================
+
+            with inspection_lock:
+
+                inspection_completed = numero
+
+                current_numero_sn = numero
+
+                current_sn = SN
+
+                current_progress = 100
+
+                current_remaining = 0
+
+                current_second = 0
+
+                completed = (
+                    inspection_completed
                 )
 
+            cartes_restantes = (
+                nombre_sn
+                -
+                completed
+            )
+
+            # =================================================
+            # EVENEMENT SAVED
+            # =================================================
+
+            saved_data = {
+
+                "PRF":
+                    PRF,
+
+                "SN":
+                    SN,
+
+                "numeroSN":
+                    numero,
+
+                "nombreSN":
+                    nombre_sn,
+
+                "completed":
+                    completed,
+
+                "remainingSN":
+                    cartes_restantes,
+
+                "resultat":
+                    resultat
+            }
+
+            sio.emit(
+                "inspection:saved",
+                saved_data
+            )
+
+            sio.emit(
+                "inspection:new",
+                saved_data
+            )
+
+            print("")
+            print("======================================")
+            print("✅ CARTE TERMINEE")
+            print("======================================")
+
+            print(
+                "SN :",
+                SN
+            )
+
+            print(
+                "Terminées :",
+                completed
+            )
+
+            print(
+                "Restantes :",
+                cartes_restantes
+            )
+
+            print("======================================")
 
         except Exception as e:
 
@@ -1693,61 +1885,67 @@ def inspection_loop():
                 e
             )
 
+            continue
 
         # ====================================================
-        # PROCHAINE INSPECTION
+        # FIN ?
         # ====================================================
 
-        numero += 1
+        if completed >= nombre_sn:
 
+            finish_inspection(
+                PRF,
+                nombre_sn
+            )
 
-        time.sleep(2)
+            return
+
+        # ====================================================
+        # PAUSE ENTRE CARTES
+        # ====================================================
+
+        print(
+            "⏳ Passage à la prochaine carte..."
+        )
+
+        for _ in range(20):
+
+            if not inspection_pause_event.is_set():
+
+                print(
+                    "⏸️ Pause entre deux cartes"
+                )
+
+                if not wait_if_paused():
+
+                    return
+
+            time.sleep(0.1)
 
 
 # ============================================================
-# DEMARRAGE ROBOT
+# DEMARRAGE
 # ============================================================
 
 print("")
 print("======================================")
-print(" DEMARRAGE ROBOT SIMULATOR")
+print("🤖 DEMARRAGE ROBOT SIMULATOR")
 print("======================================")
-print("")
-
 
 try:
 
-    # --------------------------------------------------------
-    # Laisser caméra démarrer
-    # --------------------------------------------------------
-
     time.sleep(2)
-
-
-    # --------------------------------------------------------
-    # Vérifier frame
-    # --------------------------------------------------------
 
     test_frame = wait_for_valid_frame(5)
 
-
     if test_frame is None:
 
-        print("")
-        print("⚠️ ATTENTION")
         print(
-            "La caméra est ouverte mais aucune "
-            "frame valide n'est disponible."
-        )
-
-        print(
-            "Ferme les autres applications "
-            "qui utilisent la webcam."
+            "⚠️ Aucune frame caméra"
         )
 
     else:
 
-        print("")
         print(
             "✅ TEST CAMERA REUSSI"
         )
@@ -1758,61 +1956,44 @@ try:
         )
 
         print(
-            "Luminosité moyenne :",
+            "Mean :",
             test_frame.mean()
         )
 
-
-    # --------------------------------------------------------
-    # Connexion backend
-    # --------------------------------------------------------
-
-    print("")
     print(
-        "Connexion au backend..."
+        "Connexion backend..."
     )
-
 
     sio.connect(
         SERVER_URL
     )
 
-
     print(
-        "Socket connecté"
+        "✅ Socket connecté"
     )
-
-
-    # --------------------------------------------------------
-    # Attendre
-    # --------------------------------------------------------
 
     sio.wait()
 
-
 except KeyboardInterrupt:
-
-    print("")
 
     print(
         "🛑 Robot arrêté manuellement"
     )
 
-
 except Exception as e:
-
-    print("")
 
     print(
         "❌ Erreur robot :",
         e
     )
 
-
 finally:
 
-    inspection_active = False
+    inspection_pause_event.clear()
 
+    with inspection_lock:
+
+        inspection_running = False
 
     try:
 
@@ -1821,8 +2002,8 @@ finally:
             camera.release()
 
     except Exception:
-        pass
 
+        pass
 
     print(
         "📷 Camera libérée"

@@ -8,8 +8,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { deletePcbCard } from "@/lib/api";
-
 interface Props {
   card: any;
   onDelete?: (id: string) => void;
@@ -19,6 +17,10 @@ export default function PcbCard({
   card,
   onDelete,
 }: Props) {
+  /* =========================================================
+     IMAGE
+  ========================================================= */
+
   const imageUrl =
     card.imageTop
       ? card.imageTop.startsWith("http")
@@ -30,35 +32,22 @@ export default function PcbCard({
           : `http://localhost:3001/${card.imageBottom}`
         : "/images/no-image.png";
 
-  // =============================
-  // SUPPRESSION
-  // =============================
+  /* =========================================================
+     SUPPRESSION
 
-  const handleDelete = async () => {
-    const confirmDelete = window.confirm(
-      "Voulez-vous supprimer cette inspection ?"
-    );
+     IMPORTANT :
+     Aucun window.confirm()
+     Aucun alert()
 
-    if (!confirmDelete) {
+     Le popup est géré uniquement par PcbCardsPage.
+  ========================================================= */
+
+  const handleDelete = () => {
+    if (!onDelete) {
       return;
     }
 
-    try {
-      await deletePcbCard(card.id);
-
-      if (onDelete) {
-        onDelete(card.id);
-      }
-    } catch (error) {
-      console.error(
-        "Erreur suppression :",
-        error
-      );
-
-      alert(
-        "Impossible de supprimer cette carte"
-      );
-    }
+    onDelete(card.id);
   };
 
   return (
@@ -82,7 +71,6 @@ export default function PcbCard({
         dark:hover:border-[#467276]
       "
     >
-
       {/* =================================================
           IMAGE
       ================================================= */}
@@ -92,13 +80,12 @@ export default function PcbCard({
           relative
           overflow-hidden
           bg-gray-100
-
           dark:bg-[#102a2d]
         "
       >
         <img
           src={imageUrl}
-          alt={card.sn}
+          alt={card.sn ?? "Carte"}
           className="
             h-32
             w-full
@@ -270,6 +257,7 @@ export default function PcbCard({
               gap-2
             "
           >
+
             <User
               size={15}
               className="
@@ -290,6 +278,7 @@ export default function PcbCard({
             >
               {card.operateur}
             </span>
+
           </div>
 
           {/* =================================================
@@ -308,20 +297,20 @@ export default function PcbCard({
             {/* DELETE */}
 
             <button
+              type="button"
               onClick={handleDelete}
               title="Supprimer"
+              aria-label="Supprimer la carte"
               className="
                 flex
+                h-8
+                w-8
                 items-center
-                gap-1.5
+                justify-center
                 rounded-lg
                 border
                 border-red-200
                 bg-red-50
-                px-3
-                py-1.5
-                text-xs
-                font-semibold
                 text-red-600
                 transition-all
                 duration-200
@@ -338,26 +327,24 @@ export default function PcbCard({
               "
             >
               <Trash2 size={14} />
-
-              
             </button>
 
             {/* DETAILS */}
 
             <Link
               href={`/dashboard/pcb_card/detail/${card.id}`}
+              title="Voir les détails"
+              aria-label="Voir les détails"
               className="
                 flex
+                h-8
+                w-8
                 items-center
-                gap-1.5
+                justify-center
                 rounded-lg
                 border
                 border-teal-200
                 bg-teal-50
-                px-3
-                py-1.5
-                text-xs
-                font-semibold
                 text-teal-700
                 transition-all
                 duration-200
@@ -373,11 +360,13 @@ export default function PcbCard({
                 dark:hover:text-teal-200
               "
             >
-              
-
               <ArrowRight
                 size={14}
-                className="transition-transform duration-200 group-hover:translate-x-0.5"
+                className="
+                  transition-transform
+                  duration-200
+                  group-hover:translate-x-0.5
+                "
               />
             </Link>
 
@@ -387,4 +376,3 @@ export default function PcbCard({
     </div>
   );
 }
-

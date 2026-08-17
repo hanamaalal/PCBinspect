@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -56,6 +51,7 @@ model Reference {
   longeurSN  Int
   partieFixe   String
   postpartiefixe   String
+  nombreSN Int @default(0)
   activationInterblocage Boolean
   indicePartieFixe Int
   statutSN  String

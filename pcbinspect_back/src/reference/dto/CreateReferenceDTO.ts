@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateReferenceDTO {
 
@@ -10,6 +10,9 @@ export class CreateReferenceDTO {
   longeurSN!: number;
   @IsNotEmpty()
   partieFixe!: string;
+   @IsNumber()
+  @Min(1)
+  nombreSN!: number;
   @IsNotEmpty()
   postpartiefixe!: string;
   @IsBoolean()

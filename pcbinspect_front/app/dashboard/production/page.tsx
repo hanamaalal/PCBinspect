@@ -20,7 +20,14 @@ interface ProductionData {
 
   parametres?: {
     verifSN?: boolean;
+    nombreSN?: number;
+    longeurSN?: number;
+    partieFixe?: string;
+    postpartiefixe?: string;
     activationInterblocage?: boolean;
+    indicePartieFixe?: number;
+    statutSN?: string;
+    jugementOperateurBO?: boolean;
   };
 }
 
@@ -30,6 +37,7 @@ export default function ProductionPage() {
 
   const [of, setOf] = useState("");
   const [data, setData] = useState<ProductionData | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -67,8 +75,9 @@ export default function ProductionPage() {
     } catch (error) {
       console.error(error);
 
+      setData(null);
       setError(
-        "Erreur lors de récupération de production"
+        "Erreur lors de la récupération de la production"
       );
     } finally {
       setLoading(false);
@@ -97,48 +106,37 @@ export default function ProductionPage() {
     // SUCCÈS
     // =======================================================
 
-    socket.once(
-      "inspection:started",
-      (result) => {
-        console.log(
-          "Inspection démarrée :",
-          result
-        );
+    socket.once("inspection:started", (result) => {
+      console.log("Inspection démarrée :", result);
 
-        router.push(
-          `/dashboard/inspection?PRF=${result.PRF}`
-        );
-      }
-    );
+      router.push(
+        `/dashboard/inspection?PRF=${result.PRF}`
+      );
+    });
 
     // =======================================================
     // ERREUR
     // =======================================================
 
-    socket.once(
-      "inspection:error",
-      (result) => {
-        console.error(
-          "Erreur inspection :",
-          result
-        );
+    socket.once("inspection:error", (result) => {
+      console.error("Erreur inspection :", result);
 
-        setStarting(false);
+      setStarting(false);
 
-        setError(
-          result?.message ||
-            "Erreur lors du démarrage de l'inspection"
-        );
-      }
-    );
+      setError(
+        result?.message ||
+          "Erreur lors du démarrage de l'inspection"
+      );
+    });
 
-    socket.emit(
-      "inspection:start",
-      {
-        production: data,
-        operatorId: user.id,
-      }
-    );
+    // =======================================================
+    // ENVOI AU BACKEND
+    // =======================================================
+
+    socket.emit("inspection:start", {
+      production: data,
+      operatorId: user.id,
+    });
   };
 
   // =========================================================
@@ -151,6 +149,10 @@ export default function ProductionPage() {
       socket.off("inspection:error");
     };
   }, []);
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
     <div
@@ -238,15 +240,11 @@ export default function ProductionPage() {
             dark:bg-slate-900
           "
         >
-          {/* TITRE */}
-
           <h2
             className="
               text-lg
               font-semibold
               text-gray-900
-              transition-colors
-              duration-300
               dark:text-white
             "
           >
@@ -258,8 +256,6 @@ export default function ProductionPage() {
               mt-1
               text-sm
               text-gray-500
-              transition-colors
-              duration-300
               dark:text-slate-400
             "
           >
@@ -275,8 +271,6 @@ export default function ProductionPage() {
               text-sm
               font-medium
               text-gray-700
-              transition-colors
-              duration-300
               dark:text-slate-300
             "
           >
@@ -288,6 +282,11 @@ export default function ProductionPage() {
           <input
             value={of}
             onChange={(e) => setOf(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleProduction();
+              }
+            }}
             placeholder="Ex: OF001"
             className="
               mt-3
@@ -321,6 +320,7 @@ export default function ProductionPage() {
 
           <div className="mt-5 flex justify-end">
             <button
+              type="button"
               onClick={handleProduction}
               disabled={loading}
               className="
@@ -333,6 +333,7 @@ export default function ProductionPage() {
                 shadow-sm
                 transition-all
                 duration-200
+
                 hover:bg-gray-800
                 hover:shadow-md
 
@@ -368,9 +369,6 @@ export default function ProductionPage() {
               text-sm
               font-medium
               text-red-600
-              transition-colors
-              duration-300
-
               dark:border-red-900/60
               dark:bg-red-950/40
               dark:text-red-300
@@ -407,8 +405,6 @@ export default function ProductionPage() {
                 text-xl
                 font-bold
                 text-gray-900
-                transition-colors
-                duration-300
                 dark:text-white
               "
             >
@@ -420,8 +416,6 @@ export default function ProductionPage() {
                 mt-1
                 text-sm
                 text-gray-500
-                transition-colors
-                duration-300
                 dark:text-slate-400
               "
             >
@@ -444,8 +438,6 @@ export default function ProductionPage() {
                   border-gray-200
                   bg-gray-50
                   p-5
-                  transition-colors
-                  duration-300
                   dark:border-slate-800
                   dark:bg-slate-800/50
                 "
@@ -552,8 +544,114 @@ export default function ProductionPage() {
                   grid-cols-1
                   gap-4
                   md:grid-cols-2
+                  lg:grid-cols-3
                 "
               >
+
+                {/* =================================================
+                    NOMBRE SN
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    transition-colors
+                    duration-300
+
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Nombre de SN
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-2xl
+                      font-bold
+                      text-teal-600
+                      dark:text-teal-400
+                    "
+                  >
+                    {data.parametres?.nombreSN ?? 0}
+                  </p>
+
+                  <p
+                    className="
+                      mt-1
+                      text-xs
+                      text-gray-400
+                      dark:text-slate-500
+                    "
+                  >
+                    SN à inspecter
+                  </p>
+                </div>
+
+                {/* =================================================
+                    LONGUEUR SN
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    transition-colors
+                    duration-300
+
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Longueur SN
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-xl
+                      font-bold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    {data.parametres?.longeurSN ?? "-"}
+                  </p>
+
+                  <p
+                    className="
+                      mt-1
+                      text-xs
+                      text-gray-400
+                      dark:text-slate-500
+                    "
+                  >
+                    caractères
+                  </p>
+                </div>
+
                 {/* =================================================
                     VERIFICATION SN
                 ================================================= */}
@@ -567,6 +665,7 @@ export default function ProductionPage() {
                     p-5
                     transition-colors
                     duration-300
+
                     dark:border-slate-800
                     dark:bg-slate-800/50
                   "
@@ -595,6 +694,120 @@ export default function ProductionPage() {
                 </div>
 
                 {/* =================================================
+                    PARTIE FIXE
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Partie fixe
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-xl
+                      font-bold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    {data.parametres?.partieFixe || "-"}
+                  </p>
+                </div>
+
+                {/* =================================================
+                    POST PARTIE FIXE
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Post partie fixe
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-xl
+                      font-bold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    {data.parametres?.postpartiefixe || "-"}
+                  </p>
+                </div>
+
+                {/* =================================================
+                    INDICE PARTIE FIXE
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Indice partie fixe
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-xl
+                      font-bold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    {data.parametres?.indicePartieFixe ?? "-"}
+                  </p>
+                </div>
+
+                {/* =================================================
                     INTERBLOCAGE
                 ================================================= */}
 
@@ -605,8 +818,6 @@ export default function ProductionPage() {
                     border-gray-200
                     bg-gray-50
                     p-5
-                    transition-colors
-                    duration-300
                     dark:border-slate-800
                     dark:bg-slate-800/50
                   "
@@ -633,6 +844,82 @@ export default function ProductionPage() {
                       : "✕ Désactivé"}
                   </p>
                 </div>
+
+                {/* =================================================
+                    STATUT SN
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Statut SN
+                  </p>
+
+                  <p
+                    className="
+                      mt-2
+                      text-xl
+                      font-bold
+                      text-gray-900
+                      dark:text-white
+                    "
+                  >
+                    {data.parametres?.statutSN || "-"}
+                  </p>
+                </div>
+
+                {/* =================================================
+                    JUGEMENT OPERATEUR BO
+                ================================================= */}
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-gray-50
+                    p-5
+                    dark:border-slate-800
+                    dark:bg-slate-800/50
+                  "
+                >
+                  <p
+                    className="
+                      text-sm
+                      text-gray-500
+                      dark:text-slate-400
+                    "
+                  >
+                    Jugement opérateur BO
+                  </p>
+
+                  <p
+                    className={`mt-2 font-semibold ${
+                      data.parametres?.jugementOperateurBO
+                        ? "text-teal-600 dark:text-teal-400"
+                        : "text-gray-500 dark:text-slate-500"
+                    }`}
+                  >
+                    {data.parametres?.jugementOperateurBO
+                      ? "✓ Activé"
+                      : "✕ Désactivé"}
+                  </p>
+                </div>
               </div>
 
               {/* =================================================
@@ -648,6 +935,7 @@ export default function ProductionPage() {
                 "
               >
                 <button
+                  type="button"
                   onClick={startInspection}
                   disabled={starting}
                   className="
@@ -660,6 +948,7 @@ export default function ProductionPage() {
                     shadow-sm
                     transition-all
                     duration-200
+
                     hover:bg-gray-800
                     hover:shadow-md
 

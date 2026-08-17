@@ -1,375 +1,640 @@
 import {
+  ConnectedSocket,
+  MessageBody,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-  SubscribeMessage,
-  OnGatewayDisconnect
-} from '@nestjs/websockets';
+  OnGatewayDisconnect,
+  OnGatewayConnection,
+} from "@nestjs/websockets";
 
-import {
-  Server,
-  Socket
-} from 'socket.io';
-
-import { InspectionService } from '../inspection/inspection.service';
-
-
+import { Server, Socket } from "socket.io";
 
 @WebSocketGateway({
+  cors: {
+    origin: "http://localhost:3000",
+    credentials: true,
+  },
+})
+export class RobotGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  server: Server;
 
-  cors:{
-    origin:"http://localhost:3000"
+  /**
+   * Socket du robot physique / simulateur
+   */
+  private robot: Socket | null = null;
+
+  // ============================================================
+  // CONNEXION
+  // ============================================================
+
+  handleConnection(client: Socket) {
+    console.log(
+      "🟢 Socket connecté :",
+      client.id,
+    );
   }
 
-})
-
-
-export class RobotGateway
-implements OnGatewayDisconnect {
-
-
-
-constructor(
- private inspectionService:InspectionService
-){}
-
-
-
-@WebSocketServer()
-server:Server;
-
-
-
-private robot:Socket|null=null;
-
-
-
-// ===============================
-// Connexion socket
-// ===============================
-
-
-handleConnection(socket:Socket){
-
-console.log(
-"Socket connecté",
-socket.id
-);
-
-}
-
-
-
-handleDisconnect(socket:Socket){
-
-
-console.log(
-"Socket déconnecté",
-socket.id
-);
-
-
-
-if(this.robot?.id===socket.id){
-
-this.robot=null;
-
-}
-
-
-}
-
-
-
-
-// ===============================
-// Robot connecté
-// ===============================
-
-
-@SubscribeMessage("robot:connect")
-
-robotConnect(
-
-client:Socket,
-
-data:any
-
-){
-
-
-console.log(
-"Robot connecté :",
-data.robotId
-);
-
-
-
-this.robot=client;
-
-
-
-client.emit(
-"robot:ready",
-{
-message:"Robot prêt"
-}
-);
-
-
-
-}
-
-
-
-
-// ===============================
-// Lancement inspection
-// ===============================
-
-
-@SubscribeMessage("inspection:start")
-
-startInspection(
-
-client:Socket,
-
-data:any
-
-){
-
-
-
-console.log(
-"Demande inspection",
-data
-);
-
-
-
-
-if(!this.robot){
-
-
-client.emit(
-
-"inspection:error",
-
-{
-message:"Robot non connecté"
-}
-
-);
-
-
-return;
-
-}
-
-
-
-
-const PRF=data.production.PRF;
-
-
-
-// opérateur rejoint la salle PRF
-
-client.join(PRF);
-
-
-
-
-// envoyer au robot
-
-this.robot.emit(
-
-"START",
-
-data
-
-);
-
-
-
-
-// confirmer au frontend
-
-client.emit(
-
-"inspection:started",
-
-{
-PRF:PRF,
-message:"Inspection démarrée"
-}
-
-);
-
-
-
-console.log(
-"START envoyé robot"
-);
-
-
-
-}
-
-
-
-
-// ===============================
-// Progression robot
-// ===============================
-
-
-@SubscribeMessage("inspection:progress")
-
-progress(
-
-client:Socket,
-
-data:any
-
-){
-
-
-
-console.log(
-"Progression",
-data
-);
-
-
-
-this.server
-.to(data.PRF)
-.emit(
-
-"inspection:update",
-
-data
-
-);
-
-
-
-}
-
-
-
-
-// ===============================
-// Inspection sauvegardée
-// ===============================
-
-
-@SubscribeMessage("inspection:saved")
-
-
-async saved(
-
-client:Socket,
-
-data:any
-
-){
-
-
-
-console.log(
-"Inspection sauvegardée",
-data.PRF
-);
-
-
-
-const inspections =
-
-await this.inspectionService
-.getDernieresInspections(
-data.PRF
-);
-
-
-
-if(inspections.length){
-
-
-
-this.server
-.to(data.PRF)
-.emit(
-
-"inspection:new",
-
-inspections[0]
-
-);
-
-
-}
-
-
-
-}
-
-
-
-
-// ===============================
-// Stop
-// ===============================
-
-
-@SubscribeMessage("inspection:stop")
-
-
-stop(
-
-client:Socket,
-
-data:any
-
-){
-
-
-
-console.log(
-"STOP",
-data
-);
-
-
-
-if(this.robot){
-
-
-this.robot.emit(
-"STOP"
-);
-
-
-}
-
-
-
-this.server
-.to(data.PRF)
-.emit(
-
-"inspection:stopped",
-
-{
-message:"Inspection arrêtée"
-}
-
-);
-
-
-
-}
-
-
-
+  // ============================================================
+  // DECONNEXION
+  // ============================================================
+
+  handleDisconnect(client: Socket) {
+    console.log(
+      "🔴 Socket déconnecté :",
+      client.id,
+    );
+
+    if (this.robot?.id === client.id) {
+      this.robot = null;
+
+      console.log(
+        "🤖 Robot déconnecté",
+      );
+    }
+  }
+
+  // ============================================================
+  // ROBOT CONNECT
+  // ============================================================
+
+  @SubscribeMessage("robot:connect")
+  handleRobotConnect(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: any,
+  ) {
+    console.log("");
+    console.log("======================================");
+    console.log("🤖 ROBOT CONNECT");
+    console.log("======================================");
+
+    console.log(data);
+
+    this.robot = client;
+
+    client.emit(
+      "robot:ready",
+      {
+        robotId:
+          data?.robotId,
+
+        message:
+          "Robot connecté",
+      },
+    );
+
+    console.log(
+      "✅ Robot enregistré :",
+      data?.robotId,
+    );
+  }
+
+  // ============================================================
+  // REJOINDRE INSPECTION
+  // ============================================================
+
+  @SubscribeMessage("inspection:join")
+  handleInspectionJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() PRF: string,
+  ) {
+    if (!PRF) {
+      console.log(
+        "❌ inspection:join sans PRF",
+      );
+
+      return;
+    }
+
+    const room = String(PRF);
+
+    client.join(room);
+
+    console.log(
+      `👁️ Client ${client.id} rejoint la room ${room}`,
+    );
+  }
+
+  // ============================================================
+  // START NOUVELLE INSPECTION
+  // ============================================================
+
+  @SubscribeMessage("inspection:start")
+  handleInspectionStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: any,
+  ) {
+    console.log("");
+    console.log("======================================");
+    console.log("▶️ START INSPECTION");
+    console.log("======================================");
+
+    console.log(
+      "DATA :",
+      data,
+    );
+
+    const production =
+      data?.production;
+
+    const PRF =
+      production?.PRF ??
+      data?.PRF;
+
+    if (!PRF) {
+
+      console.log(
+        "❌ START REFUSÉ : PRF manquant",
+      );
+
+      client.emit(
+        "inspection:error",
+        {
+          message:
+            "PRF manquant",
+        },
+      );
+
+      return;
+    }
+
+    const room = String(PRF);
+
+    client.join(room);
+
+    // ----------------------------------------------------------
+    // ROBOT
+    // ----------------------------------------------------------
+
+    if (!this.robot) {
+
+      console.log(
+        "❌ START REFUSÉ : robot non connecté",
+      );
+
+      client.emit(
+        "inspection:error",
+        {
+          message:
+            "Robot non connecté",
+        },
+      );
+
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // DONNEES
+    // ----------------------------------------------------------
+
+    const startData = {
+
+      ...data,
+
+      production,
+
+      operatorId:
+        data?.operatorId ??
+        production?.operatorId ??
+        null,
+    };
+
+    console.log("");
+    console.log(
+      "📤 ENVOI START AU ROBOT",
+    );
+
+    console.log(
+      "PRF :",
+      PRF,
+    );
+
+    console.log(
+      "Operator :",
+      startData.operatorId,
+    );
+
+    this.robot.emit(
+      "START",
+      startData,
+    );
+
+    // ----------------------------------------------------------
+    // FRONTEND
+    // ----------------------------------------------------------
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:started",
+        {
+          PRF,
+
+          message:
+            "Inspection démarrée",
+        },
+      );
+
+    console.log(
+      "✅ START envoyé au robot",
+    );
+  }
+
+  // ============================================================
+  // RESUME INSPECTION
+  // ============================================================
+
+  @SubscribeMessage("inspection:resume")
+  handleInspectionResume(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: any,
+  ) {
+    console.log("");
+    console.log("======================================");
+    console.log("▶️ RESUME INSPECTION");
+    console.log("======================================");
+
+    console.log(
+      "DATA :",
+      data,
+    );
+
+    const PRF =
+      data?.PRF;
+
+    if (!PRF) {
+
+      console.log(
+        "❌ RESUME REFUSÉ : PRF manquant",
+      );
+
+      client.emit(
+        "inspection:error",
+        {
+          message:
+            "PRF manquant",
+        },
+      );
+
+      return;
+    }
+
+    const room = String(PRF);
+
+    client.join(room);
+
+    // ----------------------------------------------------------
+    // ROBOT
+    // ----------------------------------------------------------
+
+    if (!this.robot) {
+
+      console.log(
+        "❌ RESUME REFUSÉ : robot non connecté",
+      );
+
+      client.emit(
+        "inspection:error",
+        {
+          message:
+            "Robot non connecté",
+        },
+      );
+
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // IMPORTANT
+    //
+    // Le robot possède déjà :
+    //
+    // production
+    // inspection_completed
+    // current_sn
+    // current_second
+    //
+    // Donc on ne lui demande PAS de recommencer
+    // l'inspection.
+    //
+    // On lui envoie START.
+    //
+    // Le Python reconnaît que le PRF est déjà actif
+    // et transforme START en RESUME.
+    // ----------------------------------------------------------
+
+    console.log(
+      "📤 ENVOI START AU ROBOT POUR REPRISE",
+    );
+
+    console.log(
+      "PRF :",
+      PRF,
+    );
+
+    this.robot.emit(
+      "START",
+      {
+        PRF,
+
+        production: {
+          PRF,
+        },
+
+        operatorId:
+          data?.operatorId ??
+          null,
+      },
+    );
+
+    console.log(
+      "✅ Demande de reprise envoyée au robot",
+    );
+  }
+
+  // ============================================================
+  // PROGRESSION
+  // ============================================================
+
+  @SubscribeMessage("inspection:progress")
+  handleInspectionProgress(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    console.log(
+      "📊 PROGRESSION :",
+      data.SN,
+      `${data.progress}%`,
+      "completed =",
+      data.completed,
+      "remaining =",
+      data.remainingSN,
+    );
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:update",
+        data,
+      );
+  }
+
+  // ============================================================
+  // CONFIGURATION
+  // ============================================================
+
+  @SubscribeMessage("inspection:configuration")
+  handleInspectionConfiguration(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:configuration",
+        data,
+      );
+  }
+
+  // ============================================================
+  // INSPECTION SAUVEE
+  // ============================================================
+
+  @SubscribeMessage("inspection:saved")
+  handleInspectionSaved(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    console.log(
+      "💾 INSPECTION SAVED :",
+      data.SN,
+    );
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:saved",
+        data,
+      );
+  }
+
+  // ============================================================
+  // NOUVELLE INSPECTION
+  // ============================================================
+
+  @SubscribeMessage("inspection:new")
+  handleInspectionNew(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    console.log(
+      "🆕 NOUVELLE INSPECTION :",
+      data.SN,
+    );
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:new",
+        data,
+      );
+  }
+
+  // ============================================================
+  // STOP / PAUSE
+  // ============================================================
+
+  @SubscribeMessage("inspection:stop")
+  handleInspectionStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: any,
+  ) {
+    console.log("");
+    console.log("======================================");
+    console.log("🛑 STOP / PAUSE INSPECTION");
+    console.log("======================================");
+
+    console.log(data);
+
+    const PRF =
+      data?.PRF;
+
+    if (!PRF) {
+
+      console.log(
+        "❌ STOP REFUSÉ : PRF manquant",
+      );
+
+      client.emit(
+        "inspection:error",
+        {
+          message:
+            "PRF manquant",
+        },
+      );
+
+      return;
+    }
+
+    const room =
+      String(PRF);
+
+    client.join(room);
+
+    // ----------------------------------------------------------
+    // ROBOT
+    // ----------------------------------------------------------
+
+    if (this.robot) {
+
+      console.log(
+        "📤 Envoi STOP au robot",
+      );
+
+      this.robot.emit(
+        "STOP",
+        {
+          PRF,
+        },
+      );
+
+    } else {
+
+      console.log(
+        "⚠️ Robot non connecté",
+      );
+    }
+
+    // ----------------------------------------------------------
+    // FRONTEND
+    //
+    // Le vrai état STOPPED sera envoyé par le robot.
+    // ----------------------------------------------------------
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:stopping",
+        {
+          PRF,
+        },
+      );
+  }
+
+  // ============================================================
+  // ETAT STOPPED DU ROBOT
+  // ============================================================
+
+  @SubscribeMessage("inspection:stopped")
+  handleInspectionStopped(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    console.log("");
+    console.log("======================================");
+    console.log("⏸️ INSPECTION EN PAUSE");
+    console.log("======================================");
+
+    console.log(data);
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:stopped",
+        data,
+      );
+  }
+
+  // ============================================================
+  // RESUME CONFIRME PAR LE ROBOT
+  // ============================================================
+
+  @SubscribeMessage("inspection:resumed")
+  handleInspectionResumed(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    console.log("");
+    console.log("======================================");
+    console.log("▶️ INSPECTION REPRISE");
+    console.log("======================================");
+
+    console.log(data);
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:resumed",
+        data,
+      );
+  }
+
+  // ============================================================
+  // FIN NORMALE
+  // ============================================================
+
+  @SubscribeMessage("inspection:finished")
+  handleInspectionFinished(
+    @MessageBody() data: any,
+  ) {
+    if (!data?.PRF) {
+      return;
+    }
+
+    const room =
+      String(data.PRF);
+
+    console.log("");
+    console.log("======================================");
+    console.log("🏁 INSPECTION FINIE");
+    console.log("======================================");
+
+    console.log(data);
+
+    this.server
+      .to(room)
+      .emit(
+        "inspection:finished",
+        data,
+      );
+  }
 }

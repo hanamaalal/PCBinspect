@@ -131,6 +131,7 @@ async verifierPRF(prf:string){
     },
     parametres:{
       verifSN:reference.verifSN,
+      nombreSN: reference.nombreSN,
       longeurSN:reference.longeurSN,
       partieFixe:reference.partieFixe,
       postpartiefixe:reference.postpartiefixe,

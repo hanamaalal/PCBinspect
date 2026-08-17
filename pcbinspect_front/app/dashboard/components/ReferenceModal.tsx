@@ -29,9 +29,21 @@ export default function ReferenceModal({
     setForm({
       ...form,
       [name]:
-        name === "longeurSN" || name === "indicePartieFixe"
+        name === "longeurSN" ||
+        name === "indicePartieFixe" ||
+        name === "nombreSN"
           ? Number(value)
           : value,
+    });
+  };
+
+  const handleBooleanChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    field: string
+  ) => {
+    setForm({
+      ...form,
+      [field]: e.target.value === "true",
     });
   };
 
@@ -56,7 +68,7 @@ export default function ReferenceModal({
           dark:bg-slate-900
         "
       >
-        {/* HEADER */}
+        {/* ================= HEADER ================= */}
         <div
           className="
             mb-6
@@ -76,7 +88,6 @@ export default function ReferenceModal({
                 text-xl
                 font-bold
                 text-gray-900
-
                 dark:text-white
               "
             >
@@ -88,7 +99,6 @@ export default function ReferenceModal({
                 mt-1
                 text-sm
                 text-gray-500
-
                 dark:text-slate-400
               "
             >
@@ -119,9 +129,10 @@ export default function ReferenceModal({
           </button>
         </div>
 
-        {/* FORMULAIRE */}
+        {/* ================= FORMULAIRE ================= */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* PRF */}
+
+          {/* ================= PRF ================= */}
           <div>
             <label
               className="
@@ -130,7 +141,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -138,9 +148,11 @@ export default function ReferenceModal({
             </label>
 
             <input
+              type="text"
               name="PRF"
-              value={form.PRF}
+              value={form.PRF ?? ""}
               onChange={handleChange}
+              placeholder="Ex : PRF001"
               className="
                 h-10
                 w-full
@@ -172,7 +184,7 @@ export default function ReferenceModal({
             />
           </div>
 
-          {/* OF */}
+          {/* ================= OF ================= */}
           <div>
             <label
               className="
@@ -181,7 +193,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -189,9 +200,11 @@ export default function ReferenceModal({
             </label>
 
             <input
+              type="text"
               name="OF"
-              value={form.OF}
+              value={form.OF ?? ""}
               onChange={handleChange}
+              placeholder="Ex : OF001"
               className="
                 h-10
                 w-full
@@ -206,6 +219,8 @@ export default function ReferenceModal({
                 transition-all
                 duration-200
 
+                placeholder:text-gray-400
+
                 focus:border-teal-500
                 focus:ring-2
                 focus:ring-teal-500/20
@@ -213,6 +228,7 @@ export default function ReferenceModal({
                 dark:border-slate-700
                 dark:bg-slate-800
                 dark:text-white
+                dark:placeholder:text-slate-500
 
                 dark:focus:border-teal-400
                 dark:focus:ring-teal-400/20
@@ -220,7 +236,7 @@ export default function ReferenceModal({
             />
           </div>
 
-          {/* LONGUEUR SN */}
+          {/* ================= LONGUEUR SN ================= */}
           <div>
             <label
               className="
@@ -229,7 +245,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -238,9 +253,11 @@ export default function ReferenceModal({
 
             <input
               type="number"
+              min="1"
               name="longeurSN"
-              value={form.longeurSN}
+              value={form.longeurSN ?? ""}
               onChange={handleChange}
+              placeholder="Ex : 12"
               className="
                 h-10
                 w-full
@@ -255,6 +272,8 @@ export default function ReferenceModal({
                 transition-all
                 duration-200
 
+                placeholder:text-gray-400
+
                 focus:border-teal-500
                 focus:ring-2
                 focus:ring-teal-500/20
@@ -262,6 +281,7 @@ export default function ReferenceModal({
                 dark:border-slate-700
                 dark:bg-slate-800
                 dark:text-white
+                dark:placeholder:text-slate-500
 
                 dark:focus:border-teal-400
                 dark:focus:ring-teal-400/20
@@ -269,7 +289,7 @@ export default function ReferenceModal({
             />
           </div>
 
-          {/* INDICE */}
+          {/* ================= NOMBRE DE SN ================= */}
           <div>
             <label
               className="
@@ -278,7 +298,70 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
+                dark:text-slate-300
+              "
+            >
+              Nombre de cartes à inspecter
+            </label>
 
+            <input
+              type="number"
+              min="1"
+              name="nombreSN"
+              value={form.nombreSN ?? ""}
+              onChange={handleChange}
+              placeholder="Ex : 50"
+              className="
+                h-10
+                w-full
+                rounded-lg
+                border
+                border-gray-300
+                bg-white
+                px-3
+                text-sm
+                text-gray-900
+                outline-none
+                transition-all
+                duration-200
+
+                placeholder:text-gray-400
+
+                focus:border-teal-500
+                focus:ring-2
+                focus:ring-teal-500/20
+
+                dark:border-slate-700
+                dark:bg-slate-800
+                dark:text-white
+                dark:placeholder:text-slate-500
+
+                dark:focus:border-teal-400
+                dark:focus:ring-teal-400/20
+              "
+            />
+
+            <p
+              className="
+                mt-1
+                text-[11px]
+                text-gray-400
+                dark:text-slate-500
+              "
+            >
+              Nombre total de cartes que le robot doit inspecter pour cet OF.
+            </p>
+          </div>
+
+          {/* ================= INDICE PARTIE FIXE ================= */}
+          <div>
+            <label
+              className="
+                mb-1.5
+                block
+                text-xs
+                font-medium
+                text-gray-600
                 dark:text-slate-300
               "
             >
@@ -287,9 +370,11 @@ export default function ReferenceModal({
 
             <input
               type="number"
+              min="0"
               name="indicePartieFixe"
-              value={form.indicePartieFixe}
+              value={form.indicePartieFixe ?? ""}
               onChange={handleChange}
+              placeholder="Ex : 1"
               className="
                 h-10
                 w-full
@@ -304,6 +389,8 @@ export default function ReferenceModal({
                 transition-all
                 duration-200
 
+                placeholder:text-gray-400
+
                 focus:border-teal-500
                 focus:ring-2
                 focus:ring-teal-500/20
@@ -311,6 +398,7 @@ export default function ReferenceModal({
                 dark:border-slate-700
                 dark:bg-slate-800
                 dark:text-white
+                dark:placeholder:text-slate-500
 
                 dark:focus:border-teal-400
                 dark:focus:ring-teal-400/20
@@ -318,7 +406,7 @@ export default function ReferenceModal({
             />
           </div>
 
-          {/* PARTIE FIXE */}
+          {/* ================= PARTIE FIXE ================= */}
           <div>
             <label
               className="
@@ -327,7 +415,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -335,9 +422,11 @@ export default function ReferenceModal({
             </label>
 
             <input
+              type="text"
               name="partieFixe"
-              value={form.partieFixe}
+              value={form.partieFixe ?? ""}
               onChange={handleChange}
+              placeholder="Ex : ABC"
               className="
                 h-10
                 w-full
@@ -352,6 +441,8 @@ export default function ReferenceModal({
                 transition-all
                 duration-200
 
+                placeholder:text-gray-400
+
                 focus:border-teal-500
                 focus:ring-2
                 focus:ring-teal-500/20
@@ -359,6 +450,7 @@ export default function ReferenceModal({
                 dark:border-slate-700
                 dark:bg-slate-800
                 dark:text-white
+                dark:placeholder:text-slate-500
 
                 dark:focus:border-teal-400
                 dark:focus:ring-teal-400/20
@@ -366,7 +458,7 @@ export default function ReferenceModal({
             />
           </div>
 
-          {/* POST PARTIE FIXE */}
+          {/* ================= POST PARTIE FIXE ================= */}
           <div>
             <label
               className="
@@ -375,7 +467,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -383,9 +474,11 @@ export default function ReferenceModal({
             </label>
 
             <input
+              type="text"
               name="postpartiefixe"
-              value={form.postpartiefixe}
+              value={form.postpartiefixe ?? ""}
               onChange={handleChange}
+              placeholder="Ex : XYZ"
               className="
                 h-10
                 w-full
@@ -400,6 +493,8 @@ export default function ReferenceModal({
                 transition-all
                 duration-200
 
+                placeholder:text-gray-400
+
                 focus:border-teal-500
                 focus:ring-2
                 focus:ring-teal-500/20
@@ -407,6 +502,7 @@ export default function ReferenceModal({
                 dark:border-slate-700
                 dark:bg-slate-800
                 dark:text-white
+                dark:placeholder:text-slate-500
 
                 dark:focus:border-teal-400
                 dark:focus:ring-teal-400/20
@@ -414,7 +510,7 @@ export default function ReferenceModal({
             />
           </div>
 
-          {/* VERIFICATION SN */}
+          {/* ================= VERIFICATION SN ================= */}
           <div>
             <label
               className="
@@ -423,7 +519,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -432,13 +527,8 @@ export default function ReferenceModal({
 
             <select
               name="verifSN"
-              value={String(form.verifSN)}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  verifSN: e.target.value === "true",
-                })
-              }
+              value={String(form.verifSN ?? false)}
+              onChange={(e) => handleBooleanChange(e, "verifSN")}
               className="
                 h-10
                 w-full
@@ -470,7 +560,7 @@ export default function ReferenceModal({
             </select>
           </div>
 
-          {/* INTERBLOCAGE */}
+          {/* ================= INTERBLOCAGE ================= */}
           <div>
             <label
               className="
@@ -479,7 +569,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -487,13 +576,10 @@ export default function ReferenceModal({
             </label>
 
             <select
-              value={String(form.activationInterblocage)}
+              name="activationInterblocage"
+              value={String(form.activationInterblocage ?? false)}
               onChange={(e) =>
-                setForm({
-                  ...form,
-                  activationInterblocage:
-                    e.target.value === "true",
-                })
+                handleBooleanChange(e, "activationInterblocage")
               }
               className="
                 h-10
@@ -526,7 +612,7 @@ export default function ReferenceModal({
             </select>
           </div>
 
-          {/* STATUT SN */}
+          {/* ================= STATUT SN ================= */}
           <div>
             <label
               className="
@@ -535,7 +621,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -544,7 +629,7 @@ export default function ReferenceModal({
 
             <select
               name="statutSN"
-              value={form.statutSN}
+              value={form.statutSN ?? ""}
               onChange={handleChange}
               className="
                 h-10
@@ -578,7 +663,7 @@ export default function ReferenceModal({
             </select>
           </div>
 
-          {/* JUGEMENT BO */}
+          {/* ================= JUGEMENT OPERATEUR BO ================= */}
           <div>
             <label
               className="
@@ -587,7 +672,6 @@ export default function ReferenceModal({
                 text-xs
                 font-medium
                 text-gray-600
-
                 dark:text-slate-300
               "
             >
@@ -595,13 +679,10 @@ export default function ReferenceModal({
             </label>
 
             <select
-              value={String(form.jugementOperateurBO)}
+              name="jugementOperateurBO"
+              value={String(form.jugementOperateurBO ?? false)}
               onChange={(e) =>
-                setForm({
-                  ...form,
-                  jugementOperateurBO:
-                    e.target.value === "true",
-                })
+                handleBooleanChange(e, "jugementOperateurBO")
               }
               className="
                 h-10
@@ -635,7 +716,7 @@ export default function ReferenceModal({
           </div>
         </div>
 
-        {/* FOOTER */}
+        {/* ================= FOOTER ================= */}
         <div
           className="
             mt-6
@@ -649,6 +730,7 @@ export default function ReferenceModal({
             dark:border-slate-800
           "
         >
+          {/* ANNULER */}
           <button
             type="button"
             onClick={onClose}
@@ -681,6 +763,7 @@ export default function ReferenceModal({
             Annuler
           </button>
 
+          {/* AJOUTER / MODIFIER */}
           <button
             type="button"
             onClick={onSubmit}
